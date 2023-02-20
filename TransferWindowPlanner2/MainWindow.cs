@@ -2,6 +2,7 @@ using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
 using JetBrains.Annotations;
+using KSP.Localization;
 using KSP.UI.Screens;
 using UnityEngine;
 
@@ -21,7 +22,14 @@ public class MainWindow : MonoBehaviour
     private Texture2D _plotDeparture = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
     private Texture2D _plotTotal = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
 
-    private GUIStyle _boxStyle, _boxTitleStyle, _plotBoxStyle, _inputStyle, _invalidInputStyle;
+    private GUIStyle _boxStyle,
+        _boxTitleStyle,
+        _plotBoxStyle,
+        _inputStyle,
+        _invalidInputStyle,
+        _buttonStyle,
+        _invalidButtonStyle;
+
     private ApplicationLauncherButton _button;
 
     private enum PlotType
@@ -33,11 +41,16 @@ public class MainWindow : MonoBehaviour
 
     private PlotType _selectedPlot = PlotType.Total;
 
-    private bool _showUI;
-
+    private bool _showMainWindow;
     private Rect _winPos = new(450, 100, WindowWidth, WindowHeight);
+    private bool _showDepartureCbWindow;
+    private Rect _departureCbWinPos = new(200, 200, 200, 200);
+    private bool _showArrivalCbWindow;
+    private Rect _arrivalCbWinPos = new(300, 200, 200, 200);
 
     // Input fields
+    private CelestialBody _departureCb;
+    private CelestialBody _arrivalCb;
     private DoubleInput _departureAltitude = new(185.0);
     private DoubleInput _departureInclination = new(28.5);
     private DoubleInput _arrivalAltitude = new(350.0);
@@ -67,6 +80,12 @@ public class MainWindow : MonoBehaviour
             fontStyle = FontStyle.Bold
         };
         _plotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
+        _buttonStyle = new GUIStyle(HighLogic.Skin.button);
+        _invalidButtonStyle = new GUIStyle(_buttonStyle) { normal = { textColor = Color.red } };
+
+        _departureCb = FlightGlobals.GetHomeBody();
+        _arrivalCb = FlightGlobals.Bodies.Find(cb => ValidCbCombination(_departureCb, cb));
+        if (_arrivalCb == null) _arrivalCb = _departureCb; // Let the user worry about it.
     }
 
     public void OnDestroy()
@@ -78,22 +97,29 @@ public class MainWindow : MonoBehaviour
     public void OnGUI()
     {
         GUI.skin = HighLogic.Skin;
-        if (_showUI) _winPos = GUILayout.Window(GetHashCode(), _winPos, WindowGUI, ModName);
+        if (_showMainWindow) _winPos = GUILayout.Window(GetHashCode(), _winPos, WindowGUI, ModName);
+        if (_showDepartureCbWindow)
+            _departureCbWinPos =
+                GUILayout.Window(GetHashCode() + 1, _departureCbWinPos, DepartureCbWindow, "Origin body");
+        if (_showArrivalCbWindow)
+            _arrivalCbWinPos =
+                GUILayout.Window(GetHashCode() + 2, _arrivalCbWinPos, ArrivalCbWindow, "Destination body");
     }
+
 
     private void ShowWindow()
     {
-        _showUI = true;
+        _showMainWindow = true;
     }
 
     private void HideWindow()
     {
-        _showUI = false;
+        _showMainWindow = false;
     }
 
     private void OnSceneChange(GameScenes s)
     {
-        _showUI = false;
+        _showMainWindow = false;
     }
 
     private void OnGuiAppLauncherReady()
@@ -135,6 +161,108 @@ public class MainWindow : MonoBehaviour
         GUI.DragWindow();
     }
 
+    private void ArrivalCbWindow(int id)
+    {
+        var cb = ShowCbSelection(_departureCb);
+        if (cb == null) return;
+        _arrivalCb = cb;
+        _showArrivalCbWindow = false;
+        GUI.DragWindow();
+    }
+
+    private void DepartureCbWindow(int id)
+    {
+        var cb = ShowCbSelection(_arrivalCb);
+        if (cb == null) return;
+        _departureCb = cb;
+        _showDepartureCbWindow = false;
+        GUI.DragWindow();
+    }
+
+    private CelestialBody ShowCbSelection(CelestialBody other)
+    {
+        GUILayout.BeginVertical();
+        foreach (var cb in FlightGlobals.Bodies)
+        {
+            if (cb.isStar)
+                continue;
+            if (GUILayout.Button(
+                    cb.displayName.LocalizeRemoveGender(),
+                    ValidCbCombination(other, cb) ? _buttonStyle : _invalidButtonStyle)
+               )
+                return cb;
+        }
+
+        GUILayout.EndVertical();
+        return null;
+    }
+
+    private static bool ValidCbCombination(CelestialBody cb1, CelestialBody cb2)
+    {
+        return cb1 != cb2 &&
+               !cb1.isStar && !cb2.isStar &&
+               cb1.referenceBody == cb2.referenceBody;
+    }
+
+    private bool ValidInputs()
+    {
+        return ValidCbCombination(_departureCb, _arrivalCb) &&
+               _departureAltitude.Valid &&
+               _departureInclination.Valid &&
+               _earliestDeparture.Valid &&
+               _latestDeparture.Valid &&
+               _arrivalAltitude.Valid &&
+               _earliestArrival.Valid &&
+               _latestArrival.Valid;
+    }
+
+    private void ShowInputs()
+    {
+        GUILayout.BeginVertical(GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
+
+        GUILayout.FlexibleSpace();
+
+        using (new GUILayout.VerticalScope(_boxStyle))
+        {
+            GUILayout.Label("Origin", _boxTitleStyle);
+            _showDepartureCbWindow = GUILayout.Toggle(_showDepartureCbWindow,
+                _departureCb.displayName.LocalizeRemoveGender(),
+                ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle);
+            LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
+            LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
+            LabeledDateInput("Earliest", ref _earliestDeparture);
+            LabeledDateInput("Latest", ref _latestDeparture);
+        }
+
+        GUILayout.FlexibleSpace();
+
+        using (new GUILayout.VerticalScope(_boxStyle))
+        {
+            GUILayout.Label("Destination", _boxTitleStyle);
+            _showArrivalCbWindow = GUILayout.Toggle(_showArrivalCbWindow,
+                _arrivalCb.displayName.LocalizeRemoveGender(),
+                ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle);
+            LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
+            _minimalCapture = GUILayout.Toggle(_minimalCapture, "Minimal capture");
+            LabeledDateInput("Earliest", ref _earliestArrival);
+            LabeledDateInput("Latest", ref _latestArrival);
+        }
+
+        GUILayout.FlexibleSpace();
+
+        GUI.enabled = ValidInputs();
+        if (GUILayout.Button("Plot it!"))
+        {
+            // TODO: start the porkchop calculation
+        }
+
+        GUI.enabled = true;
+
+        GUILayout.FlexibleSpace();
+
+        GUILayout.EndVertical();
+    }
+
     private void ShowPlot()
     {
         using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
@@ -155,39 +283,6 @@ public class MainWindow : MonoBehaviour
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
                 GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
         }
-    }
-
-    private void ShowInputs()
-    {
-        GUILayout.BeginVertical(GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
-
-        GUILayout.FlexibleSpace();
-
-        using (new GUILayout.VerticalScope(_boxStyle))
-        {
-            GUILayout.Label("Origin", _boxTitleStyle);
-            LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
-            LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
-            LabeledDateInput("Earliest", ref _earliestDeparture);
-            LabeledDateInput("Latest", ref _latestDeparture);
-        }
-
-        GUILayout.FlexibleSpace();
-
-        using (new GUILayout.VerticalScope(_boxStyle))
-        {
-            GUILayout.Label("Destination", _boxTitleStyle);
-            LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
-            _minimalCapture = GUILayout.Toggle(_minimalCapture, "Minimal capture");
-            LabeledDateInput("Earliest", ref _earliestArrival);
-            LabeledDateInput("Latest", ref _latestArrival);
-        }
-
-        GUILayout.FlexibleSpace();
-        GUILayout.Button("Plot it!");
-        GUILayout.FlexibleSpace();
-
-        GUILayout.EndVertical();
     }
 
     private void ShowDepartureInfo()
@@ -331,8 +426,8 @@ internal struct DateInput
         Ut = ut;
 
         _stockDateRegex = // Ynn, Dnn
-            KSP.Localization.Localizer.Format("#autoLOC_6002344") + @"(\d+), " +
-            KSP.Localization.Localizer.Format("#autoLOC_6002345") + @"(\d+)";
+            Localizer.Format("#autoLOC_6002344") + @"(\d+), " +
+            Localizer.Format("#autoLOC_6002345") + @"(\d+)";
     }
 
     public string Text
