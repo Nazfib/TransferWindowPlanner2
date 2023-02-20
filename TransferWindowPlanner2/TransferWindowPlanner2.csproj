@@ -31,6 +31,7 @@
         <Reference Include="UnityEngine.AnimationModule" />
         <Reference Include="UnityEngine.CoreModule" />
         <Reference Include="UnityEngine.IMGUIModule" />
+        <Reference Include="UnityEngine.TextRenderingModule" />
     </ItemGroup>
     
     <Target Name="CopyToKSP" AfterTargets="Build">
