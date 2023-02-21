@@ -1,12 +1,11 @@
 using System;
-using System.Globalization;
-using System.Text.RegularExpressions;
 using JetBrains.Annotations;
-using KSP.Localization;
 using KSP.UI.Screens;
 using UnityEngine;
 
 namespace TransferWindowPlanner2;
+
+using static GuiUtils;
 
 [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
 public class MainWindow : MonoBehaviour
@@ -295,13 +294,15 @@ public class MainWindow : MonoBehaviour
             // TODO: calculate actual values for most of these fields; fiddle with the formatting
             GUILayout.Label("Departure", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_earliestDeparture.Ut, true));
-            LabeledInfo("Periapsis altitude", $"{_departureAltitude.Value:N0} km");
-            LabeledInfo("Inclination", $"{_departureInclination.Value:N2} °");
-            LabeledInfo("LAN", $"{243.2:N2} °");
-            LabeledInfo("Asymptote right ascension", $"{80.10:N2} °");
-            LabeledInfo("Asymptote declination", $"{15.0:N2} °");
-            LabeledInfo("C3", $"{12.30:N2} km²/s²");
-            LabeledInfo("Δv", $"{3851.6:N0} m/s");
+            LabeledInfo("Periapsis altitude",
+                ToStringSiPrefixed(_departureAltitude.Value * 1e3, "m"));
+            LabeledInfo("Inclination", $"{_departureInclination.Value:N2} °");
+            LabeledInfo("LAN", $"{243.2:N2} °");
+            LabeledInfo("Asymptote right ascension", $"{80.10:N2} °");
+            LabeledInfo("Asymptote declination", $"{15.0:N2} °");
+            LabeledInfo("C3", ToStringSiPrefixed(12.30 * 1e6, "m²/s²", 2));
+            LabeledInfo("Δv", ToStringSiPrefixed(3581.6, "m/s"));
+            LabeledInfo("Distance", ToStringSiPrefixed(120 * 1e9, "m"));
         }
     }
 
@@ -314,13 +315,15 @@ public class MainWindow : MonoBehaviour
             // TODO: calculate actual values for most of these fields; fiddle with the formatting
             GUILayout.Label("Arrival", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_latestArrival.Ut, true));
-            LabeledInfo("Periapsis altitude", $"{_arrivalAltitude.Value:N0} km");
-            LabeledInfo("Inclination", $"{32.9:N2} °");
-            LabeledInfo("LAN", $"{10.2:N2} °");
-            LabeledInfo("Asymptote right ascension", $"{80.1:N2} °");
-            LabeledInfo("Asymptote declination", $"{15.0:N2} °");
-            LabeledInfo("C3", $"{12.3:N2} km²/s²");
-            LabeledInfo("Δv", $"{1183.2:N0} m/s");
+            LabeledInfo("Periapsis altitude",
+                ToStringSiPrefixed(_arrivalAltitude.Value * 1e3, "m"));
+            LabeledInfo("Inclination", $"{32.9:N2} °");
+            LabeledInfo("LAN", $"{10.2:N2} °");
+            LabeledInfo("Asymptote right ascension", $"{80.1:N2} °");
+            LabeledInfo("Asymptote declination", $"{15.0:N2} °");
+            LabeledInfo("C3", ToStringSiPrefixed(12.30 * 1e6, "m²/s²", 2));
+            LabeledInfo("Δv", ToStringSiPrefixed(1183.2, "m/s"));
+            LabeledInfo("Distance", ToStringSiPrefixed(280 * 1e9, "m"));
         }
     }
 
@@ -333,7 +336,7 @@ public class MainWindow : MonoBehaviour
         {
             GUILayout.Label("Transfer", _boxTitleStyle);
             LabeledInfo("Flight time", KSPUtil.PrintDateDelta(_latestArrival.Ut - _earliestDeparture.Ut, false));
-            LabeledInfo("Total Δv", $"{3851.6 + 1183.2:N0} m/s");
+            LabeledInfo("Total Δv", ToStringSiPrefixed(3851.6 + 1183.2, "m/s"));
         }
     }
 
@@ -374,107 +377,5 @@ public class MainWindow : MonoBehaviour
             GUILayout.Width(100));
 
         GUILayout.EndHorizontal();
-    }
-}
-
-internal struct DoubleInput
-{
-    public DoubleInput(double value)
-    {
-        _text = value.ToString(CultureInfo.CurrentCulture);
-        Valid = true;
-        Value = value;
-    }
-
-    private string _text;
-
-    public string Text
-    {
-        get => _text;
-        set
-        {
-            _text = value;
-            if (double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out var result))
-            {
-                Valid = true;
-                Value = result;
-            }
-            else
-            {
-                Valid = false;
-            }
-        }
-    }
-
-    public bool Valid;
-    public double Value;
-}
-
-internal struct DateInput
-{
-    public bool Valid;
-    public double Ut;
-
-    private string _text;
-
-    private readonly string _stockDateRegex;
-
-    public DateInput(double ut)
-    {
-        _text = KSPUtil.PrintDateCompact(ut, false);
-        Valid = true;
-        Ut = ut;
-
-        _stockDateRegex = // Ynn, Dnn
-            Localizer.Format("#autoLOC_6002344") + @"(\d+), " +
-            Localizer.Format("#autoLOC_6002345") + @"(\d+)";
-    }
-
-    public string Text
-    {
-        get => _text;
-        set
-        {
-            _text = value;
-            if (TryParseDate(value, out var result))
-            {
-                Valid = true;
-                Ut = result;
-            }
-            else
-            {
-                Valid = false;
-            }
-        }
-    }
-
-    private bool TryParseDate(string text, out double ut)
-    {
-        // Stock format: Ynn, Dnn
-
-        var match = Regex.Match(text, _stockDateRegex, RegexOptions.Compiled);
-        if (match.Success)
-        {
-            var year = int.Parse(match.Groups[1].Value);
-            var day = int.Parse(match.Groups[2].Value);
-            ut = (year - 1) * KSPUtil.dateTimeFormatter.Year + (day - 1) * KSPUtil.dateTimeFormatter.Day;
-            return true;
-        }
-
-        // TODO: test this with RSS and RSSTimeFormatter
-        // RSSTimeFormatter: yyyy-MM-dd
-        if (DateTime.TryParseExact(
-                text, "yyyy-MM-dd",
-                CultureInfo.CurrentCulture, // Is this correct? Probably...
-                DateTimeStyles.None,
-                out var result))
-        {
-            var epoch = new DateTime(1951, 1, 1);
-            ut = (result - epoch).TotalSeconds;
-            return true;
-        }
-
-        ut = 0.0;
-        return false;
     }
 }
