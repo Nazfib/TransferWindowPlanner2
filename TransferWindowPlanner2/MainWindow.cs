@@ -1,5 +1,4 @@
 using System;
-using JetBrains.Annotations;
 using KSP.UI.Screens;
 using UnityEngine;
 
@@ -17,25 +16,24 @@ public class MainWindow : MonoBehaviour
     private const int WindowWidth = 750;
     private const int WindowHeight = 600;
 
-    private Texture2D _plotArrival = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
-    private Texture2D _plotDeparture = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
-    private Texture2D _plotTotal = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private readonly Texture2D _plotArrival = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private readonly Texture2D _plotDeparture = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private readonly Texture2D _plotTotal = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
 
-    private GUIStyle _boxStyle,
-        _boxTitleStyle,
-        _plotBoxStyle,
-        _inputStyle,
-        _invalidInputStyle,
-        _buttonStyle,
-        _invalidButtonStyle;
+    // Nullability: these are all initialized in `Start()`
+    private GUIStyle _boxStyle = null!,
+                     _boxTitleStyle = null!,
+                     _plotBoxStyle = null!,
+                     _inputStyle = null!,
+                     _invalidInputStyle = null!,
+                     _buttonStyle = null!,
+                     _invalidButtonStyle = null!;
 
-    private ApplicationLauncherButton _button;
+    private ApplicationLauncherButton? _button;
 
     private enum PlotType
     {
-        Departure = 0,
-        Arrival = 1,
-        Total = 2
+        Departure = 0, Arrival = 1, Total = 2,
     }
 
     private PlotType _selectedPlot = PlotType.Total;
@@ -48,8 +46,8 @@ public class MainWindow : MonoBehaviour
     private Rect _arrivalCbWinPos = new(300, 200, 200, 200);
 
     // Input fields
-    private CelestialBody _departureCb;
-    private CelestialBody _arrivalCb;
+    private CelestialBody _departureCb = null!; // Nullability: Initialized in `Start()`
+    private CelestialBody _arrivalCb = null!; // Nullability: Initialized in `Start()`
     private DoubleInput _departureAltitude = new(185.0);
     private DoubleInput _departureInclination = new(28.5);
     private DoubleInput _arrivalAltitude = new(350.0);
@@ -59,6 +57,8 @@ public class MainWindow : MonoBehaviour
     private DateInput _latestDeparture = new(0.0);
     private DateInput _earliestArrival = new(0.0);
     private DateInput _latestArrival = new(0.0);
+
+    private Solver? _solver;
 
     protected void Awake()
     {
@@ -71,12 +71,12 @@ public class MainWindow : MonoBehaviour
         _inputStyle = new GUIStyle(HighLogic.Skin.textField) { alignment = TextAnchor.MiddleRight };
         _invalidInputStyle = new GUIStyle(_inputStyle)
         {
-            normal = { textColor = Color.red }
+            normal = { textColor = Color.red },
         };
         _boxTitleStyle = new GUIStyle(HighLogic.Skin.label)
         {
             alignment = TextAnchor.MiddleCenter,
-            fontStyle = FontStyle.Bold
+            fontStyle = FontStyle.Bold,
         };
         _plotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
         _buttonStyle = new GUIStyle(HighLogic.Skin.button);
@@ -84,25 +84,34 @@ public class MainWindow : MonoBehaviour
 
         _departureCb = FlightGlobals.GetHomeBody();
         _arrivalCb = FlightGlobals.Bodies.Find(cb => ValidCbCombination(_departureCb, cb));
-        if (_arrivalCb == null) _arrivalCb = _departureCb; // Let the user worry about it.
+        if (_arrivalCb == null)
+        {
+            _arrivalCb = _departureCb; // No valid destinations from the home body: let the user worry about it.
+        }
     }
 
     public void OnDestroy()
     {
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
-        if (_button != null) ApplicationLauncher.Instance.RemoveModApplication(_button);
+        if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
     }
 
     public void OnGUI()
     {
         GUI.skin = HighLogic.Skin;
-        if (_showMainWindow) _winPos = GUILayout.Window(GetHashCode(), _winPos, WindowGUI, ModName);
+        if (_showMainWindow) { _winPos = GUILayout.Window(GetHashCode(), _winPos, WindowGUI, ModName); }
+
         if (_showDepartureCbWindow)
+        {
             _departureCbWinPos =
                 GUILayout.Window(GetHashCode() + 1, _departureCbWinPos, DepartureCbWindow, "Origin body");
+        }
+
         if (_showArrivalCbWindow)
+        {
             _arrivalCbWinPos =
                 GUILayout.Window(GetHashCode() + 2, _arrivalCbWinPos, ArrivalCbWindow, "Destination body");
+        }
     }
 
 
@@ -163,7 +172,8 @@ public class MainWindow : MonoBehaviour
     private void ArrivalCbWindow(int id)
     {
         var cb = ShowCbSelection(_departureCb);
-        if (cb == null) return;
+        if (cb == null) { return; }
+
         _arrivalCb = cb;
         _showArrivalCbWindow = false;
         GUI.DragWindow();
@@ -172,24 +182,23 @@ public class MainWindow : MonoBehaviour
     private void DepartureCbWindow(int id)
     {
         var cb = ShowCbSelection(_arrivalCb);
-        if (cb == null) return;
+        if (cb == null) { return; }
+
         _departureCb = cb;
         _showDepartureCbWindow = false;
         GUI.DragWindow();
     }
 
-    private CelestialBody ShowCbSelection(CelestialBody other)
+    private CelestialBody? ShowCbSelection(CelestialBody other)
     {
         GUILayout.BeginVertical();
         foreach (var cb in FlightGlobals.Bodies)
         {
-            if (cb.isStar)
-                continue;
+            if (cb.isStar) { continue; }
+
             if (GUILayout.Button(
                     cb.displayName.LocalizeRemoveGender(),
-                    ValidCbCombination(other, cb) ? _buttonStyle : _invalidButtonStyle)
-               )
-                return cb;
+                    ValidCbCombination(other, cb) ? _buttonStyle : _invalidButtonStyle)) { return cb; }
         }
 
         GUILayout.EndVertical();
@@ -224,7 +233,8 @@ public class MainWindow : MonoBehaviour
         using (new GUILayout.VerticalScope(_boxStyle))
         {
             GUILayout.Label("Origin", _boxTitleStyle);
-            _showDepartureCbWindow = GUILayout.Toggle(_showDepartureCbWindow,
+            _showDepartureCbWindow = GUILayout.Toggle(
+                _showDepartureCbWindow,
                 _departureCb.displayName.LocalizeRemoveGender(),
                 ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle);
             LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
@@ -238,7 +248,8 @@ public class MainWindow : MonoBehaviour
         using (new GUILayout.VerticalScope(_boxStyle))
         {
             GUILayout.Label("Destination", _boxTitleStyle);
-            _showArrivalCbWindow = GUILayout.Toggle(_showArrivalCbWindow,
+            _showArrivalCbWindow = GUILayout.Toggle(
+                _showArrivalCbWindow,
                 _arrivalCb.displayName.LocalizeRemoveGender(),
                 ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle);
             LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
@@ -250,10 +261,7 @@ public class MainWindow : MonoBehaviour
         GUILayout.FlexibleSpace();
 
         GUI.enabled = ValidInputs();
-        if (GUILayout.Button("Plot it!"))
-        {
-            // TODO: start the porkchop calculation
-        }
+        if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
 
         GUI.enabled = true;
 
@@ -266,17 +274,16 @@ public class MainWindow : MonoBehaviour
     {
         using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
         {
-            _selectedPlot = (PlotType)GUILayout.SelectionGrid((int)_selectedPlot, new[]
-            {
-                "Departure", "Arrival", "Total"
-            }, 3);
+            _selectedPlot = (PlotType)GUILayout.SelectionGrid(
+                (int)_selectedPlot, new[] { "Departure", "Arrival", "Total" }, 3);
 
-            GUILayout.Box(_selectedPlot switch
+            GUILayout.Box(
+                _selectedPlot switch
                 {
                     PlotType.Departure => _plotDeparture,
                     PlotType.Arrival => _plotArrival,
                     PlotType.Total => _plotTotal,
-                    _ => _plotTotal
+                    _ => _plotTotal,
                 },
                 _plotBoxStyle,
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
@@ -294,36 +301,39 @@ public class MainWindow : MonoBehaviour
             // TODO: calculate actual values for most of these fields; fiddle with the formatting
             GUILayout.Label("Departure", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_earliestDeparture.Ut, true));
-            LabeledInfo("Periapsis altitude",
-                ToStringSiPrefixed(_departureAltitude.Value * 1e3, "m"));
+            LabeledInfo(
+                "Periapsis altitude",
+                ToStringSIPrefixed(_departureAltitude.Value * 1e3, "m"));
             LabeledInfo("Inclination", $"{_departureInclination.Value:N2} °");
             LabeledInfo("LAN", $"{243.2:N2} °");
             LabeledInfo("Asymptote right ascension", $"{80.10:N2} °");
             LabeledInfo("Asymptote declination", $"{15.0:N2} °");
-            LabeledInfo("C3", ToStringSiPrefixed(12.30 * 1e6, "m²/s²", 2));
-            LabeledInfo("Δv", ToStringSiPrefixed(3581.6, "m/s"));
-            LabeledInfo("Distance", ToStringSiPrefixed(120 * 1e9, "m"));
+            LabeledInfo("C3", ToStringSIPrefixed(12.30 * 1e6, "m²/s²", 2));
+            LabeledInfo("Δv", ToStringSIPrefixed(3581.6, "m/s"));
+            LabeledInfo("Distance", ToStringSIPrefixed(120 * 1e9, "m"));
         }
     }
 
     private void ShowArrivalInfo()
     {
-        using (new GUILayout.VerticalScope(_boxStyle,
+        using (new GUILayout.VerticalScope(
+                   _boxStyle,
                    GUILayout.ExpandWidth(false),
                    GUILayout.Width(WindowWidth / 3f)))
         {
             // TODO: calculate actual values for most of these fields; fiddle with the formatting
             GUILayout.Label("Arrival", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_latestArrival.Ut, true));
-            LabeledInfo("Periapsis altitude",
-                ToStringSiPrefixed(_arrivalAltitude.Value * 1e3, "m"));
+            LabeledInfo(
+                "Periapsis altitude",
+                ToStringSIPrefixed(_arrivalAltitude.Value * 1e3, "m"));
             LabeledInfo("Inclination", $"{32.9:N2} °");
             LabeledInfo("LAN", $"{10.2:N2} °");
             LabeledInfo("Asymptote right ascension", $"{80.1:N2} °");
             LabeledInfo("Asymptote declination", $"{15.0:N2} °");
-            LabeledInfo("C3", ToStringSiPrefixed(12.30 * 1e6, "m²/s²", 2));
-            LabeledInfo("Δv", ToStringSiPrefixed(1183.2, "m/s"));
-            LabeledInfo("Distance", ToStringSiPrefixed(280 * 1e9, "m"));
+            LabeledInfo("C3", ToStringSIPrefixed(12.30 * 1e6, "m²/s²", 2));
+            LabeledInfo("Δv", ToStringSIPrefixed(1183.2, "m/s"));
+            LabeledInfo("Distance", ToStringSIPrefixed(280 * 1e9, "m"));
         }
     }
 
@@ -336,9 +346,46 @@ public class MainWindow : MonoBehaviour
         {
             GUILayout.Label("Transfer", _boxTitleStyle);
             LabeledInfo("Flight time", KSPUtil.PrintDateDelta(_latestArrival.Ut - _earliestDeparture.Ut, false));
-            LabeledInfo("Total Δv", ToStringSiPrefixed(3851.6 + 1183.2, "m/s"));
+            LabeledInfo("Total Δv", ToStringSIPrefixed(3851.6 + 1183.2, "m/s"));
+            if (GUILayout.Button("Show parking orbit in map view"))
+            {
+                // TODO: port from TWP
+            }
+
+            if (GUILayout.Button("Show ejection angles in map view"))
+            {
+                // TODO: port from TWP
+            }
         }
     }
+
+    private void GeneratePlots()
+    {
+        _solver ??= new Solver(PlotWidth, PlotHeight);
+
+        _solver.GeneratePorkchop(
+            _departureCb, _arrivalCb,
+            _earliestDeparture.Ut, _latestDeparture.Ut,
+            _earliestArrival.Ut, _latestArrival.Ut);
+
+        DrawTexture(_plotDeparture, _solver.DepC3, _solver.MinDepC3, _solver.MaxDepC3);
+        DrawTexture(_plotArrival, _solver.ArrC3, _solver.MinArrC3, _solver.MaxArrC3);
+        DrawTexture(_plotTotal, _solver.TotalC3, _solver.MinTotalC3, _solver.MaxTotalC3);
+    }
+
+    private static void DrawTexture(Texture2D tex, double[,] c3, double minC3, double maxC3)
+    {
+        for (var i = 0; i < PlotWidth; ++i)
+        {
+            for (var j = 0; j < PlotHeight; ++j)
+            {
+                var color = ColorMap.MapColor((float)c3[i, j], (float)minC3, (float)maxC3);
+                tex.SetPixel(i, PlotHeight - j - 1, color);
+            }
+        }
+        tex.Apply();
+    }
+
 
     private static void LabeledInfo(string label, string value)
     {
@@ -350,7 +397,7 @@ public class MainWindow : MonoBehaviour
         }
     }
 
-    private void LabeledDoubleInput(string label, ref DoubleInput input, [CanBeNull] string unit)
+    private void LabeledDoubleInput(string label, ref DoubleInput input, string? unit)
     {
         GUILayout.BeginHorizontal();
         GUILayout.Label(label);
@@ -359,7 +406,7 @@ public class MainWindow : MonoBehaviour
             input.Text,
             input.Valid ? _inputStyle : _invalidInputStyle,
             GUILayout.Width(100));
-        if (!string.IsNullOrEmpty(unit)) GUILayout.Label(unit, GUILayout.ExpandWidth(false));
+        if (!string.IsNullOrEmpty(unit)) { GUILayout.Label(unit, GUILayout.ExpandWidth(false)); }
 
         GUILayout.EndHorizontal();
     }

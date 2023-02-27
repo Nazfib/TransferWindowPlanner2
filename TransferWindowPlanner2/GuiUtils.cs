@@ -1,7 +1,6 @@
 using System;
 using System.Globalization;
 using System.Text.RegularExpressions;
-using JetBrains.Annotations;
 using KSP.Localization;
 
 namespace TransferWindowPlanner2;
@@ -30,10 +29,7 @@ public static class GuiUtils
                     Valid = true;
                     Value = result;
                 }
-                else
-                {
-                    Valid = false;
-                }
+                else { Valid = false; }
             }
         }
 
@@ -72,10 +68,7 @@ public static class GuiUtils
                     Valid = true;
                     Ut = result;
                 }
-                else
-                {
-                    Valid = false;
-                }
+                else { Valid = false; }
             }
         }
 
@@ -113,13 +106,13 @@ public static class GuiUtils
     private static readonly string[] SmallPrefixes = { "m", "μ", "n", "p", "f", "a", "z", "y" };
     private static readonly string[] LargePrefixes = { "k", "M", "G", "T", "P", "E", "Z", "Y" };
 
-    public static string ToStringSiPrefixed(double value, string unit, int exponent = 1, string format = "G4")
+    public static string ToStringSIPrefixed(double value, string unit, int exponent = 1, string format = "G4")
     {
-        if (value == 0.0) return value.ToString(format) + "$ {unit}";
+        if (value == 0.0) { return value.ToString(format) + "$ {unit}"; }
 
         var steps = (int)Math.Floor(Math.Log10(Math.Abs(value)) / (3 * exponent));
-        if (steps > 0 && steps > LargePrefixes.Length) steps = LargePrefixes.Length;
-        if (steps < 0 && -steps > SmallPrefixes.Length) steps = -SmallPrefixes.Length;
+        if (steps > 0 && steps > LargePrefixes.Length) { steps = LargePrefixes.Length; }
+        if (steps < 0 && -steps > SmallPrefixes.Length) { steps = -SmallPrefixes.Length; }
 
         var scaled = value * Math.Pow(1000, -(steps * exponent));
 
@@ -127,7 +120,7 @@ public static class GuiUtils
         {
             0 => scaled.ToString(format) + $" {unit}",
             > 0 => scaled.ToString(format) + $" {LargePrefixes[steps - 1]}{unit}",
-            < 0 => scaled.ToString(format) + $" {SmallPrefixes[-steps - 1]}{unit}"
+            < 0 => scaled.ToString(format) + $" {SmallPrefixes[-steps - 1]}{unit}",
         };
     }
 }
