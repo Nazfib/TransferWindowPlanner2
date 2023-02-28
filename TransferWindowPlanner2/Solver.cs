@@ -49,7 +49,7 @@ public class Solver
         _earliestArrival = earliestArrival;
         _latestArrival = latestArrival;
         _departurePeR = cbOrigin.Radius + departureAltitude;
-        _arrivalPeR = cbDestination.Radius = departureAltitude;
+        _arrivalPeR = cbDestination.Radius + departureAltitude;
         _circularize = circularize;
         SolveAllProblems();
     }
@@ -166,6 +166,8 @@ public class Solver
         double depInc, bool circularize,
         double tDep, double tArr)
     {
+        if (tArr < tDep) { return new TransferDetails(); }
+
         SolveSingleProblem(
             origin,
             destination, tDep, tArr, out var depPos,
@@ -187,10 +189,12 @@ public class Solver
         var depΔv = ΔvForC3(origin.gravParameter, depC3, depPeR, true);
         var arrΔv = ΔvForC3(destination.gravParameter, arrC3, arrPeR, circularize);
 
-        var arrDistance = (origin.orbit.getRelativePositionAtUT(tDep).xzy - arrPos).magnitude;
+        // See the comment in SolveSingleProblem
+        var arrDepTa = origin.orbit.TrueAnomalyAtUT(tArr);
+        var arrDistance = (origin.orbit.getPositionFromTrueAnomaly(arrDepTa, false) - arrPos).magnitude;
 
-        var depAsyRA = Math.Atan2(depRelVel.y, depRelVel.x);
-        var arrAsyRA = Math.Atan2(arrRelVel.y, arrRelVel.x);
+        var depAsyRA = Wrap2Pi(Math.Atan2(depRelVel.y, depRelVel.x));
+        var arrAsyRA = Wrap2Pi(Math.Atan2(arrRelVel.y, arrRelVel.x));
 
         var depAsyDecl = Math.Asin(depRelVel.z / depRelVel.magnitude);
         var arrAsyDecl = Math.Asin(arrRelVel.z / arrRelVel.magnitude);
@@ -202,8 +206,7 @@ public class Solver
             depInc = Math.Abs(depAsyDecl);
             depLAN = depAsyRA - 0.5 * Math.PI * Math.Sign(depAsyDecl);
         }
-        if (depLAN < 0) { depLAN += 2 * Math.PI; }
-
+        depLAN = Wrap2Pi(depLAN);
 
         return new TransferDetails
         {
@@ -235,10 +238,16 @@ public class Solver
         out Vector3d depVel, out Vector3d arrVel)
     {
         // TODO: we're calculating the same value 400 times for each. Look into caching it.
-        depPos = origin.orbit.getRelativePositionAtUT(tDep).xzy;
-        depCbVel = origin.orbit.getOrbitalVelocityAtUT(tDep).xzy;
-        arrPos = destination.orbit.getRelativePositionAtUT(tArr).xzy;
-        arrCbVel = destination.orbit.getOrbitalVelocityAtUT(tArr).xzy;
+        // Unity internally uses a left-handed coordinate system, with the +y axis pointing to the North pole. However,
+        // the Orbit class methods return coordinates with the y and z axes flipped; this creates a right-handed
+        // coordinate system with the +z axis pointing to the north pole.
+        // We need to use the methods taking a true anomaly instead of those taking an UT, because the TrueAnomaly
+        // methods have a boolean parameter to skip the WorldToLocal conversion (which rotates the resulting vector away
+        // from the Planetarium system to align with the global Unity coordinate system).
+        var taDep = origin.orbit.TrueAnomalyAtUT(tDep);
+        var taArr = destination.orbit.TrueAnomalyAtUT(tArr);
+        origin.orbit.GetOrbitalStateVectorsAtTrueAnomaly(taDep, tDep, false, out depPos, out depCbVel);
+        destination.orbit.GetOrbitalStateVectorsAtTrueAnomaly(taArr, tArr, false, out arrPos, out arrCbVel);
 
         var mu = origin.referenceBody.gravParameter;
 

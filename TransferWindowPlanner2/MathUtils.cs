@@ -23,4 +23,11 @@ public static class MathUtils
 
         return Math.Sqrt(2 * mu / periapsis + c3) - vStart;
     }
+
+    public static double Wrap2Pi(double x)
+    {
+        x %= 2 * Math.PI;
+        if (x < 0) { x += 2 * Math.PI; }
+        return x;
+    }
 }
