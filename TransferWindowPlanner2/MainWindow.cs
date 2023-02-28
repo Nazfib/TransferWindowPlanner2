@@ -301,6 +301,26 @@ public class MainWindow : MonoBehaviour
                 _plotBoxStyle,
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
                 GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
+
+            if (_solver == null) { return; }
+
+            var rect = GUILayoutUtility.GetLastRect();
+            var mousePos = Event.current.mousePosition;
+            if (rect.Contains(mousePos))
+            {
+                var pos = mousePos - rect.position;
+                var i = (int)pos.x;
+                var j = (int)pos.y;
+                GUI.Label(
+                    new Rect(mousePos.x + 5, mousePos.y - 20, 100, 45),
+                    $"Eject: {_solver.DepΔv[i, j]:0}m/s\n"
+                    + $"Insert: {_solver.ArrΔv[i, j]:0}m/s\n"
+                    + $"Total: {_solver.TotalΔv[i, j]:0}m/s");
+                if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
+                {
+                    UpdateTransferDetails((i, j));
+                }
+            }
         }
     }
 
@@ -338,7 +358,7 @@ public class MainWindow : MonoBehaviour
             LabeledInfo(
                 "Periapsis altitude",
                 ToStringSIPrefixed(_transferDetails.ArrivalPeriapsis, "m"));
-            LabeledInfo("Distance", ToStringSIPrefixed(_transferDetails.ArrivalDistance, "m"));
+            LabeledInfo("Distance between bodies", ToStringSIPrefixed(_transferDetails.ArrivalDistance, "m"));
             GUILayout.Label(""); // Empty row
             LabeledInfo("Asymptote right ascension", $"{_transferDetails.ArrivalAsyRA * Rad2Deg:N2} °");
             LabeledInfo("Asymptote declination", $"{_transferDetails.ArrivalAsyDecl * Rad2Deg:N2} °");
@@ -356,10 +376,11 @@ public class MainWindow : MonoBehaviour
                    GUILayout.Width(WindowWidth / 3f)))
         {
             GUILayout.Label("Transfer", _boxTitleStyle);
-            LabeledInfo("Flight time", KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, false));
+            LabeledInfo("Flight time", KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, true));
             LabeledInfo("Total Δv", ToStringSIPrefixed(_transferDetails.TotalΔv, "m/s"));
         }
 
+        GUILayout.FlexibleSpace();
         if (GUILayout.Button("Show parking orbit in map view"))
         {
             // TODO: port from TWP
@@ -386,7 +407,13 @@ public class MainWindow : MonoBehaviour
         DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinDepΔv * _plotMargin.Value);
         DrawTexture(_plotTotal, _solver.TotalΔv, _solver.MinTotalΔv, _solver.MinDepΔv * _plotMargin.Value);
 
-        var (tDep, tArr) = _solver.TimesFor(_solver.MinTotalPoint);
+        UpdateTransferDetails(_solver.MinTotalPoint);
+    }
+
+    private void UpdateTransferDetails((int, int) point)
+    {
+        if (_solver == null) { return; }
+        var (tDep, tArr) = _solver.TimesFor(point);
         _transferDetails = Solver.CalculateDetails(
             _departureCb, _arrivalCb, _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3,
             _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
@@ -398,7 +425,7 @@ public class MainWindow : MonoBehaviour
         {
             for (var j = 0; j < PlotHeight; ++j)
             {
-                var color = ColorMap.MapColorReverse((float)c3[i, j], (float)minC3, (float)maxC3);
+                var color = ColorMap.MapColorLogarithmicReverse((float)c3[i, j], (float)minC3, (float)maxC3);
                 tex.SetPixel(i, PlotHeight - j - 1, color);
             }
         }

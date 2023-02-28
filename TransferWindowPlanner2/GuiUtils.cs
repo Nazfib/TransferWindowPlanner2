@@ -76,8 +76,8 @@ public static class GuiUtils
                 _text = value;
                 if (TryParseDate(value, out var result))
                 {
+                    _ut = result;
                     Valid = true;
-                    Ut = result;
                 }
                 else { Valid = false; }
             }
