@@ -1,4 +1,5 @@
 using System;
+using static TransferWindowPlanner2.MathUtils;
 
 namespace TransferWindowPlanner2;
 
@@ -245,14 +246,5 @@ public class Solver
             mu, depPos, depCbVel, arrPos,
             tArr - tDep, 0,
             out depVel, out arrVel);
-    }
-
-    private static double ΔvForC3(double mu, double c3, double periapsis, bool circularize)
-    {
-        var vStart = circularize
-            ? Math.Sqrt(mu / periapsis)
-            : Math.Sqrt(2 * mu / periapsis);
-
-        return Math.Sqrt(2 * mu / periapsis + c3) - vStart;
     }
 }

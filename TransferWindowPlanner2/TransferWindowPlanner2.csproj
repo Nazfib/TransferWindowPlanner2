@@ -27,21 +27,21 @@
     </ItemDefinitionGroup>
 
     <ItemGroup>
-        <Reference Include="Assembly-CSharp"/>
-        <Reference Include="UnityEngine"/>
-        <Reference Include="UnityEngine.AnimationModule"/>
-        <Reference Include="UnityEngine.CoreModule"/>
-        <Reference Include="UnityEngine.IMGUIModule"/>
-        <Reference Include="UnityEngine.TextRenderingModule"/>
+        <Reference Include="Assembly-CSharp" />
+        <Reference Include="UnityEngine" />
+        <Reference Include="UnityEngine.AnimationModule" />
+        <Reference Include="UnityEngine.CoreModule" />
+        <Reference Include="UnityEngine.IMGUIModule" />
+        <Reference Include="UnityEngine.TextRenderingModule" />
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="MechJebLib\**"/>
-        <Compile Include="MechJebLib\Maths\Gooding.cs"/>
-        <Compile Include="MechJebLib\Utils\Statics.cs"/>
+        <Compile Remove="MechJebLib\**" />
+        <Compile Include="MechJebLib\Maths\Gooding.cs" />
+        <Compile Include="MechJebLib\Utils\Statics.cs" />
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">
-        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(KSPDir)\GameData\TransferWindowPlanner2"/>
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(KSPDir)\GameData\TransferWindowPlanner2" />
     </Target>
 </Project>

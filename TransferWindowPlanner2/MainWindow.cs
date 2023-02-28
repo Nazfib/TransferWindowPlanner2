@@ -1,6 +1,7 @@
 using System;
 using KSP.UI.Screens;
 using UnityEngine;
+using static TransferWindowPlanner2.MathUtils;
 
 namespace TransferWindowPlanner2;
 
@@ -407,7 +408,8 @@ public class MainWindow : MonoBehaviour
     private void ResetTimes()
     {
         var departureRange = Math.Min(
-            2 * SynodicPeriod(_departureCb.orbit.period, _arrivalCb.orbit.period), 2 * _departureCb.orbit.period);
+            2 * SynodicPeriod(_departureCb.orbit.period, _arrivalCb.orbit.period),
+            2 * _departureCb.orbit.period);
 
         _earliestDeparture.Ut = Planetarium.GetUniversalTime();
         _latestDeparture.Ut = _earliestDeparture.Ut + departureRange;
@@ -419,17 +421,6 @@ public class MainWindow : MonoBehaviour
 
         _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
         _latestArrival.Ut = _latestDeparture.Ut + travelMax;
-    }
-
-    private static double SynodicPeriod(double p1, double p2)
-    {
-        return Math.Abs(1 / (1 / p1 - 1 / p2));
-    }
-
-    private static double HohmannTime(double mu, double sma1, double sma2)
-    {
-        var a = (sma1 + sma2) * 0.5;
-        return Math.PI * Math.Sqrt(a * a * a / mu);
     }
 
 
