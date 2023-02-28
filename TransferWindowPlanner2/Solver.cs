@@ -1,138 +1,258 @@
-using UnityEngine;
+using System;
 
 namespace TransferWindowPlanner2;
 
 public class Solver
 {
-    internal readonly int NDepartures;
-    internal readonly int NArrivals;
+    private readonly int _nDepartures;
+    private readonly int _nArrivals;
 
-    internal double GravParameter;
+    internal readonly double[,] DepΔv;
+    internal readonly double[,] ArrΔv;
+    internal readonly double[,] TotalΔv;
 
-    internal readonly double[] DepTime;
-    internal readonly Vector3d[] DepPos;
-    internal readonly Vector3d[] DepCbVel;
+    internal double MinDepΔv, MinArrΔv, MinTotalΔv;
+    internal (int, int) MinDepPoint, MinArrPoint, MinTotalPoint;
 
-    internal readonly double[] ArrTime;
-    internal readonly Vector3d[] ArrPos;
-    internal readonly Vector3d[] ArrCbVel;
-
-    internal readonly Vector3d[,] DepVel;
-    internal readonly Vector3d[,] ArrVel;
-    internal readonly double[,] DepC3;
-    internal readonly double[,] ArrC3;
-    internal readonly double[,] TotalC3;
-
-    internal double MinDepC3, MaxDepC3, MinArrC3, MaxArrC3, MinTotalC3, MaxTotalC3;
+    private CelestialBody? _cbOrigin;
+    private CelestialBody? _cbDestination;
+    private double _earliestDeparture;
+    private double _latestDeparture;
+    private double _earliestArrival;
+    private double _latestArrival;
+    private double _departurePeR;
+    private double _arrivalPeR;
+    private bool _circularize;
 
     public Solver(int nDepartures, int nArrivals)
     {
-        NDepartures = nDepartures;
-        NArrivals = nArrivals;
+        _nDepartures = nDepartures;
+        _nArrivals = nArrivals;
 
-        DepTime = new double[nDepartures];
-        DepPos = new Vector3d[nDepartures];
-        DepCbVel = new Vector3d[nDepartures];
-        // 400 * (8+24+24) = 43.75 kiB
-
-        ArrTime = new double[nArrivals];
-        ArrPos = new Vector3d[nArrivals];
-        ArrCbVel = new Vector3d[nArrivals];
-        // 400 * (8+24+24) = 43.75 kiB
-
-        DepVel = new Vector3d[nDepartures, nArrivals];
-        ArrVel = new Vector3d[nDepartures, nArrivals];
-        DepC3 = new double[nDepartures, nArrivals];
-        ArrC3 = new double[nDepartures, nArrivals];
-        TotalC3 = new double[nDepartures, nArrivals];
-        // (400 * 400) * (2*24 + 3*8) = 10.98 MiB
+        DepΔv = new double[nDepartures, nArrivals];
+        ArrΔv = new double[nDepartures, nArrivals];
+        TotalΔv = new double[nDepartures, nArrivals];
+        // (400 * 400) * (3*8) = 3.66 MiB
     }
 
     public void GeneratePorkchop(
         CelestialBody cbOrigin, CelestialBody cbDestination,
         double earliestDeparture, double latestDeparture,
-        double earliestArrival, double latestArrival)
+        double earliestArrival, double latestArrival,
+        double departureAltitude, double arrivalAltitude, bool circularize)
     {
-        Debug.Log("[GeneratePorkchop] Filling input arrays...");
-        FillInputs(cbOrigin, cbDestination, earliestDeparture, latestDeparture, earliestArrival, latestArrival);
-        Debug.Log("[GeneratePorkchop] Solving Lambert's Problems...");
+        _cbOrigin = cbOrigin;
+        _cbDestination = cbDestination;
+        _earliestDeparture = earliestDeparture;
+        _latestDeparture = latestDeparture;
+        _earliestArrival = earliestArrival;
+        _latestArrival = latestArrival;
+        _departurePeR = cbOrigin.Radius + departureAltitude;
+        _arrivalPeR = cbDestination.Radius = departureAltitude;
+        _circularize = circularize;
         SolveAllProblems();
-        Debug.Log("[GeneratePorkchop] Done.");
-        Debug.Log($"[GeneratePorkchop] C3 Departure: {MinDepC3} - {MaxDepC3}");
-        Debug.Log($"[GeneratePorkchop] C3 Arrival: {MinArrC3} - {MaxArrC3}");
-        Debug.Log($"[GeneratePorkchop] C3 Total: {MinTotalC3} - {MaxTotalC3}");
     }
 
-    private void FillInputs(
-        CelestialBody cbOrigin, CelestialBody cbDestination,
-        double earliestDeparture, double latestDeparture,
-        double earliestArrival, double latestArrival)
+    internal (double, double) TimesFor((int, int) tuple)
     {
-        // Departure positions
-        var depStep = (latestDeparture - earliestDeparture) / (NDepartures - 1);
-        for (var i = 0; i < NDepartures; ++i)
-        {
-            var utDep = earliestDeparture + i * depStep;
-            var startPos = cbOrigin.orbit.getRelativePositionAtUT(utDep);
-            var startVel = cbOrigin.orbit.getOrbitalVelocityAtUT(utDep);
+        var (i, j) = tuple;
+        return TimesFor(i, j);
+    }
 
-            DepTime[i] = utDep;
-            DepPos[i] = startPos;
-            DepCbVel[i] = startVel;
-        }
+    internal (double, double) TimesFor(int i, int j)
+    {
+        var depStep = (_latestDeparture - _earliestDeparture) / (_nDepartures - 1);
+        var arrStep = (_latestArrival - _earliestArrival) / (_nArrivals - 1);
 
-        // Arrival positions
-        var arrStep = (latestArrival - earliestArrival) / (NArrivals - 1);
-        for (var j = 0; j < NArrivals; ++j)
-        {
-            var utArr = earliestArrival + j * arrStep;
-            var endPos = cbDestination.orbit.getRelativePositionAtUT(utArr);
-            var endVel = cbDestination.orbit.getOrbitalVelocityAtUT(utArr);
-
-            ArrTime[j] = utArr;
-            ArrPos[j] = endPos;
-            ArrCbVel[j] = endVel;
-        }
-
-        GravParameter = cbOrigin.referenceBody.gravParameter;
+        // Left to right -> increasing departure time
+        var tDep = _earliestDeparture + i * depStep;
+        // Top to bottom -> decreasing arrival time
+        var tArr = _latestArrival - j * arrStep;
+        return (tDep, tArr);
     }
 
     private void SolveAllProblems()
     {
-        MinDepC3 = MinArrC3 = MinTotalC3 = double.PositiveInfinity;
-        MaxDepC3 = MaxArrC3 = MaxTotalC3 = double.NegativeInfinity;
+        if (_cbOrigin == null || _cbDestination == null) { return; }
 
-        for (var i = 0; i < NDepartures; ++i)
-        for (var j = 0; j < NArrivals; ++j)
+        MinDepΔv = MinArrΔv = MinTotalΔv = double.PositiveInfinity;
+
+        for (var i = 0; i < _nDepartures; ++i)
+        for (var j = 0; j < _nArrivals; ++j)
         {
-            SolveSingleProblem(
-                GravParameter,
-                DepPos[i], ArrPos[j], ArrTime[j] - DepTime[i],
-                out DepVel[i, j], out ArrVel[i, j]);
+            // Left to right -> increasing departure time
+            var (tDep, tArr) = TimesFor(i, j);
 
-            var depC3 = (DepVel[i, j] - DepCbVel[i]).sqrMagnitude;
-            DepC3[i, j] = depC3;
-            if (depC3 < MinDepC3) { MinDepC3 = depC3; }
-            if (depC3 > MaxDepC3) { MaxDepC3 = depC3; }
+            var timeOfFlight = tArr - tDep;
+            if (timeOfFlight > 0)
+            {
+                SolveSingleProblem(
+                    _cbOrigin, _cbDestination, tDep, tArr,
+                    out _, out _,
+                    out var depCbVel, out var arrCbVel,
+                    out var depVel, out var arrVel);
 
-            var arrC3 = (ArrVel[i, j] - ArrCbVel[j]).sqrMagnitude;
-            ArrC3[i, j] = arrC3;
-            if (arrC3 < MinArrC3) { MinArrC3 = arrC3; }
-            if (arrC3 > MaxArrC3) { MaxArrC3 = arrC3; }
+                var depC3 = (depVel - depCbVel).sqrMagnitude;
+                var depΔv = DepΔv[i, j] = ΔvForC3(_cbOrigin.gravParameter, depC3, _departurePeR, true);
+                if (depΔv < MinDepΔv)
+                {
+                    MinDepΔv = depΔv;
+                    MinDepPoint = (i, j);
+                }
 
-            var totalC3 = depC3 + arrC3;
-            TotalC3[i, j] = totalC3;
-            if (totalC3 < MinTotalC3) { MinTotalC3 = totalC3; }
-            if (totalC3 > MaxTotalC3) { MaxTotalC3 = totalC3; }
+                var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
+                var arrΔv = ArrΔv[i, j] = ΔvForC3(_cbDestination.gravParameter, arrC3, _arrivalPeR, _circularize);
+                if (arrΔv < MinArrΔv)
+                {
+                    MinArrΔv = arrΔv;
+                    MinArrPoint = (i, j);
+                }
+
+                var totalΔv = TotalΔv[i, j] = depΔv + arrΔv;
+                if (totalΔv < MinTotalΔv)
+                {
+                    MinTotalΔv = totalΔv;
+                    MinTotalPoint = (i, j);
+                }
+            }
+            else { DepΔv[i, j] = ArrΔv[i, j] = TotalΔv[i, j] = double.NaN; }
         }
     }
 
-    private static void SolveSingleProblem(
-        double mu, Vector3d pos1, Vector3d pos2, double timeOfFlight,
-        out Vector3d vel1, out Vector3d vel2)
+    public struct TransferDetails
     {
-        // TODO: call a Lambert solver routine
-        vel1 = Vector3d.zero;
-        vel2 = Vector3d.zero;
+        // Departure:
+        public double DepartureTime;
+
+        public double DeparturePeriapsis;
+
+        public double DepartureInclination;
+
+        public double DepartureLAN;
+
+        public double DepartureAsyRA;
+
+        public double DepartureAsyDecl;
+
+        public double DepartureC3;
+
+        public double DepartureΔv;
+
+        // Arrival:
+        public double ArrivalTime;
+
+        public double ArrivalPeriapsis;
+
+        public double ArrivalDistance;
+
+        public double ArrivalAsyRA;
+
+        public double ArrivalAsyDecl;
+
+        public double ArrivalC3;
+
+        public double ArrivalΔv;
+
+        // Transfer:
+        public double TimeOfFlight;
+
+        public double TotalΔv;
+    }
+
+    public static TransferDetails CalculateDetails(
+        CelestialBody origin, CelestialBody destination,
+        double depPeA, double arrPeA,
+        double depInc, bool circularize,
+        double tDep, double tArr)
+    {
+        SolveSingleProblem(
+            origin,
+            destination, tDep, tArr, out var depPos,
+            out var arrPos,
+            out var depCbVel,
+            out var arrCbVel,
+            out var depVel,
+            out var arrVel
+        );
+        var depPeR = depPeA + origin.Radius;
+        var arrPeR = arrPeA + destination.Radius;
+
+        var depRelVel = depVel - depCbVel;
+        var arrRelVel = arrVel - arrCbVel;
+
+        var depC3 = depRelVel.sqrMagnitude;
+        var arrC3 = arrRelVel.sqrMagnitude;
+
+        var depΔv = ΔvForC3(origin.gravParameter, depC3, depPeR, true);
+        var arrΔv = ΔvForC3(destination.gravParameter, arrC3, arrPeR, circularize);
+
+        var arrDistance = (origin.orbit.getRelativePositionAtUT(tDep).xzy - arrPos).magnitude;
+
+        var depAsyRA = Math.Atan2(depRelVel.y, depRelVel.x);
+        var arrAsyRA = Math.Atan2(arrRelVel.y, arrRelVel.x);
+
+        var depAsyDecl = Math.Asin(depRelVel.z / depRelVel.magnitude);
+        var arrAsyDecl = Math.Asin(arrRelVel.z / arrRelVel.magnitude);
+
+        double depLAN;
+        if (Math.Abs(depAsyDecl) < depInc) { depLAN = depAsyRA - Math.Asin(Math.Tan(depAsyDecl) / Math.Tan(depInc)); }
+        else
+        {
+            depInc = Math.Abs(depAsyDecl);
+            depLAN = depAsyRA - 0.5 * Math.PI * Math.Sign(depAsyDecl);
+        }
+        if (depLAN < 0) { depLAN += 2 * Math.PI; }
+
+
+        return new TransferDetails
+        {
+            DepartureTime = tDep,
+            DeparturePeriapsis = depPeA,
+            DepartureInclination = depInc,
+            DepartureLAN = depLAN,
+            DepartureAsyRA = depAsyRA,
+            DepartureAsyDecl = depAsyDecl,
+            DepartureC3 = depC3,
+            DepartureΔv = depΔv,
+            ArrivalTime = tArr,
+            ArrivalPeriapsis = arrPeA,
+            ArrivalDistance = arrDistance,
+            ArrivalAsyRA = arrAsyRA,
+            ArrivalAsyDecl = arrAsyDecl,
+            ArrivalC3 = arrC3,
+            ArrivalΔv = arrΔv,
+            TimeOfFlight = tArr - tDep,
+            TotalΔv = depΔv + arrΔv,
+        };
+    }
+
+    private static void SolveSingleProblem(
+        CelestialBody origin, CelestialBody destination,
+        double tDep, double tArr,
+        out Vector3d depPos, out Vector3d arrPos,
+        out Vector3d depCbVel, out Vector3d arrCbVel,
+        out Vector3d depVel, out Vector3d arrVel)
+    {
+        // TODO: we're calculating the same value 400 times for each. Look into caching it.
+        depPos = origin.orbit.getRelativePositionAtUT(tDep).xzy;
+        depCbVel = origin.orbit.getOrbitalVelocityAtUT(tDep).xzy;
+        arrPos = destination.orbit.getRelativePositionAtUT(tArr).xzy;
+        arrCbVel = destination.orbit.getOrbitalVelocityAtUT(tArr).xzy;
+
+        var mu = origin.referenceBody.gravParameter;
+
+        MechJebLib.Maths.Gooding.Solve(
+            mu, depPos, depCbVel, arrPos,
+            tArr - tDep, 0,
+            out depVel, out arrVel);
+    }
+
+    private static double ΔvForC3(double mu, double c3, double periapsis, bool circularize)
+    {
+        var vStart = circularize
+            ? Math.Sqrt(mu / periapsis)
+            : Math.Sqrt(2 * mu / periapsis);
+
+        return Math.Sqrt(2 * mu / periapsis + c3) - vStart;
     }
 }

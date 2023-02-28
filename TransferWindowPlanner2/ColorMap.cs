@@ -6,10 +6,22 @@ public static class ColorMap
 {
     public static Color MapColor(float value, float min, float max)
     {
+        if (!float.IsFinite(value)) { return ErrorColor; }
+
         var t = Mathf.RoundToInt(Mathf.InverseLerp(min, max, value) * 255);
         if (t < 0) { t = 0; }
         if (t > 255) { t = 255; }
         return ColorValues[t];
+    }
+
+    public static Color MapColorReverse(float value, float min, float max)
+    {
+        return MapColor(-value, -max, -min);
+    }
+
+    public static Color MapColorLogarithmic(float value, float min, float max)
+    {
+        return MapColor(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
     }
 
     private static readonly Color[] ColorValues =
@@ -273,4 +285,6 @@ public static class ColorMap
         new(0.977f, 0.970f, 0.041f),
         new(0.975f, 0.975f, 0.039f),
     };
+
+    private static readonly Color ErrorColor = ColorValues[0];
 }

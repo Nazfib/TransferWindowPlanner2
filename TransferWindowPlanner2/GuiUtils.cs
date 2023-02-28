@@ -40,21 +40,32 @@ public static class GuiUtils
     public struct DateInput
     {
         public bool Valid;
-        public double Ut;
 
+        private double _ut;
         private string _text;
 
         private readonly string _stockDateRegex;
 
         public DateInput(double ut)
         {
+            _ut = ut;
             _text = KSPUtil.PrintDateCompact(ut, false);
             Valid = true;
-            Ut = ut;
 
             _stockDateRegex = // Ynn, Dnn
                 Localizer.Format("#autoLOC_6002344") + @"(\d+), " +
                 Localizer.Format("#autoLOC_6002345") + @"(\d+)";
+        }
+
+        public double Ut
+        {
+            get => _ut;
+            set
+            {
+                _ut = value;
+                _text = KSPUtil.PrintDateCompact(value, false);
+                Valid = true;
+            }
         }
 
         public string Text
