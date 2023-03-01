@@ -119,7 +119,7 @@ public static class GuiUtils
 
     public static string ToStringSIPrefixed(double value, string unit, int exponent = 1, string format = "G4")
     {
-        if (value == 0.0) { return value.ToString(format) + "$ {unit}"; }
+        if (value == 0.0 || !double.IsFinite(value)) { return value.ToString(format) + $" {unit}"; }
 
         var steps = (int)Math.Floor(Math.Log10(Math.Abs(value)) / (3 * exponent));
         if (steps > 0 && steps > LargePrefixes.Length) { steps = LargePrefixes.Length; }
@@ -133,5 +133,10 @@ public static class GuiUtils
             > 0 => scaled.ToString(format) + $" {LargePrefixes[steps - 1]}{unit}",
             < 0 => scaled.ToString(format) + $" {SmallPrefixes[-steps - 1]}{unit}",
         };
+    }
+
+    internal static bool CurrentSceneHasMapView()
+    {
+        return HighLogic.LoadedScene is GameScenes.FLIGHT or GameScenes.TRACKSTATION;
     }
 }

@@ -94,7 +94,8 @@ public class Solver
                     out var depVel, out var arrVel);
 
                 var depC3 = (depVel - depCbVel).sqrMagnitude;
-                var depΔv = DepΔv[i, j] = ΔvForC3(_cbOrigin.gravParameter, depC3, _departurePeR, true);
+                var depΔv = DepΔv[i, j] = ΔvForC3(
+                    _cbOrigin.gravParameter, _cbOrigin.sphereOfInfluence, depC3, _departurePeR, true);
                 if (depΔv < MinDepΔv)
                 {
                     MinDepΔv = depΔv;
@@ -102,7 +103,8 @@ public class Solver
                 }
 
                 var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
-                var arrΔv = ArrΔv[i, j] = ΔvForC3(_cbDestination.gravParameter, arrC3, _arrivalPeR, _circularize);
+                var arrΔv = ArrΔv[i, j] = ΔvForC3(
+                    _cbDestination.gravParameter, _cbDestination.sphereOfInfluence, arrC3, _arrivalPeR, _circularize);
                 if (arrΔv < MinArrΔv)
                 {
                     MinArrΔv = arrΔv;
@@ -122,6 +124,8 @@ public class Solver
 
     public struct TransferDetails
     {
+        public bool IsValid;
+
         // Departure:
         public double DepartureTime;
 
@@ -130,6 +134,10 @@ public class Solver
         public double DepartureInclination;
 
         public double DepartureLAN;
+
+        public Vector3d DepartureVInf;
+
+        public Vector3d DeparturePeDirection;
 
         public double DepartureAsyRA;
 
@@ -170,7 +178,8 @@ public class Solver
 
         SolveSingleProblem(
             origin,
-            destination, tDep, tArr, out var depPos,
+            destination, tDep, tArr,
+            out var depPos,
             out var arrPos,
             out var depCbVel,
             out var arrCbVel,
@@ -180,24 +189,24 @@ public class Solver
         var depPeR = depPeA + origin.Radius;
         var arrPeR = arrPeA + destination.Radius;
 
-        var depRelVel = depVel - depCbVel;
-        var arrRelVel = arrVel - arrCbVel;
+        var depVInf = depVel - depCbVel;
+        var arrVInf = arrVel - arrCbVel;
 
-        var depC3 = depRelVel.sqrMagnitude;
-        var arrC3 = arrRelVel.sqrMagnitude;
+        var depC3 = depVInf.sqrMagnitude;
+        var arrC3 = arrVInf.sqrMagnitude;
 
-        var depΔv = ΔvForC3(origin.gravParameter, depC3, depPeR, true);
-        var arrΔv = ΔvForC3(destination.gravParameter, arrC3, arrPeR, circularize);
+        var depΔv = ΔvForC3(origin.gravParameter, origin.sphereOfInfluence, depC3, depPeR, true);
+        var arrΔv = ΔvForC3(destination.gravParameter, destination.sphereOfInfluence, arrC3, arrPeR, circularize);
 
         // See the comment in SolveSingleProblem
         var arrDepTa = origin.orbit.TrueAnomalyAtUT(tArr);
         var arrDistance = (origin.orbit.getPositionFromTrueAnomaly(arrDepTa, false) - arrPos).magnitude;
 
-        var depAsyRA = Wrap2Pi(Math.Atan2(depRelVel.y, depRelVel.x));
-        var arrAsyRA = Wrap2Pi(Math.Atan2(arrRelVel.y, arrRelVel.x));
+        var depAsyRA = Wrap2Pi(Math.Atan2(depVInf.y, depVInf.x));
+        var arrAsyRA = Wrap2Pi(Math.Atan2(arrVInf.y, arrVInf.x));
 
-        var depAsyDecl = Math.Asin(depRelVel.z / depRelVel.magnitude);
-        var arrAsyDecl = Math.Asin(arrRelVel.z / arrRelVel.magnitude);
+        var depAsyDecl = Math.Asin(depVInf.z / depVInf.magnitude);
+        var arrAsyDecl = Math.Asin(arrVInf.z / arrVInf.magnitude);
 
         double depLAN;
         if (Math.Abs(depAsyDecl) < depInc) { depLAN = depAsyRA - Math.Asin(Math.Tan(depAsyDecl) / Math.Tan(depInc)); }
@@ -208,12 +217,18 @@ public class Solver
         }
         depLAN = Wrap2Pi(depLAN);
 
+        var depPeDir = PeriapsisDirection(
+            origin.gravParameter, origin.sphereOfInfluence, depVInf, depPeR, depInc, depLAN);
+
         return new TransferDetails
         {
+            IsValid = true,
             DepartureTime = tDep,
             DeparturePeriapsis = depPeA,
             DepartureInclination = depInc,
             DepartureLAN = depLAN,
+            DepartureVInf = depVInf,
+            DeparturePeDirection = depPeDir,
             DepartureAsyRA = depAsyRA,
             DepartureAsyDecl = depAsyDecl,
             DepartureC3 = depC3,

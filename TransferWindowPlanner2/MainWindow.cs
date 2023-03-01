@@ -30,7 +30,8 @@ public class MainWindow : MonoBehaviour
                      _inputStyle = null!,
                      _invalidInputStyle = null!,
                      _buttonStyle = null!,
-                     _invalidButtonStyle = null!;
+                     _invalidButtonStyle = null!,
+                     _plotTooltipStyle = null!;
 
     private ApplicationLauncherButton? _button;
 
@@ -51,9 +52,9 @@ public class MainWindow : MonoBehaviour
     // Input fields
     private CelestialBody _departureCb = null!; // Nullability: Initialized in `Start()`
     private CelestialBody _arrivalCb = null!; // Nullability: Initialized in `Start()`
-    private DoubleInput _departureAltitude = new(185.0);
-    private DoubleInput _departureInclination = new(28.5);
-    private DoubleInput _arrivalAltitude = new(350.0);
+    private DoubleInput _departureAltitude = new(100.0);
+    private DoubleInput _departureInclination = new(0.0);
+    private DoubleInput _arrivalAltitude = new(150.0);
     private bool _circularize = true;
 
     private DateInput _earliestDeparture = new(0.0);
@@ -61,15 +62,21 @@ public class MainWindow : MonoBehaviour
     private DateInput _earliestArrival = new(0.0);
     private DateInput _latestArrival = new(0.0);
 
-    private DoubleInput _plotMargin = new(10.0);
+    private DoubleInput _plotMargin = new(5.0);
 
-    private Solver.TransferDetails _transferDetails = new();
+    private Solver.TransferDetails _transferDetails;
 
     private Solver? _solver;
+
+    private MapAngleRenderer? _ejectAngleRenderer;
 
     protected void Awake()
     {
         GameEvents.onGUIApplicationLauncherReady.Add(OnGuiAppLauncherReady);
+        if (CurrentSceneHasMapView())
+        {
+            _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
+        }
     }
 
     protected void Start()
@@ -88,6 +95,12 @@ public class MainWindow : MonoBehaviour
         _plotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
         _buttonStyle = new GUIStyle(HighLogic.Skin.button);
         _invalidButtonStyle = new GUIStyle(_buttonStyle) { normal = { textColor = Color.red } };
+        _plotTooltipStyle = new GUIStyle(_boxStyle)
+        {
+            alignment = TextAnchor.MiddleLeft,
+            fontStyle = FontStyle.Normal,
+        };
+
 
         _departureCb = FlightGlobals.GetHomeBody();
         _arrivalCb = FlightGlobals.Bodies.Find(cb => ValidCbCombination(_departureCb, cb));
@@ -102,6 +115,7 @@ public class MainWindow : MonoBehaviour
     {
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
+        if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
     }
 
     public void OnGUI()
@@ -311,11 +325,16 @@ public class MainWindow : MonoBehaviour
                 var pos = mousePos - rect.position;
                 var i = (int)pos.x;
                 var j = (int)pos.y;
+                var (dep, arr) = _solver.TimesFor(i, j);
+                var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}\n"
+                              + $"Arrival: {KSPUtil.PrintDateCompact(arr, false)}\n"
+                              + $"Eject: {ToStringSIPrefixed(_solver.DepΔv[i, j], "m/s")}\n"
+                              + $"Insert: {ToStringSIPrefixed(_solver.ArrΔv[i, j], "m/s")}\n"
+                              + $"Total: {ToStringSIPrefixed(_solver.TotalΔv[i, j], "m/s")}";
+                var size = _plotTooltipStyle.CalcSize(new GUIContent(tooltip));
                 GUI.Label(
-                    new Rect(mousePos.x + 5, mousePos.y - 20, 100, 45),
-                    $"Eject: {_solver.DepΔv[i, j]:0}m/s\n"
-                    + $"Insert: {_solver.ArrΔv[i, j]:0}m/s\n"
-                    + $"Total: {_solver.TotalΔv[i, j]:0}m/s");
+                    new Rect(mousePos.x + 25, mousePos.y - 5, size.x, size.y),
+                    tooltip, _plotTooltipStyle);
                 if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
                 {
                     UpdateTransferDetails((i, j));
@@ -336,10 +355,10 @@ public class MainWindow : MonoBehaviour
             LabeledInfo(
                 "Periapsis altitude",
                 ToStringSIPrefixed(_transferDetails.DeparturePeriapsis, "m"));
-            LabeledInfo("Inclination", $"{_transferDetails.DepartureInclination * Rad2Deg:N2} °");
-            LabeledInfo("LAN", $"{_transferDetails.DepartureLAN * Rad2Deg:N2} °");
-            LabeledInfo("Asymptote right ascension", $"{_transferDetails.DepartureAsyRA * Rad2Deg:N2} °");
-            LabeledInfo("Asymptote declination", $"{_transferDetails.DepartureAsyDecl * Rad2Deg:N2} °");
+            LabeledInfo("Inclination", $"{_transferDetails.DepartureInclination * Rad2Deg:F2} °");
+            LabeledInfo("LAN", $"{_transferDetails.DepartureLAN * Rad2Deg:F2} °");
+            LabeledInfo("Asymptote right ascension", $"{_transferDetails.DepartureAsyRA * Rad2Deg:F2} °");
+            LabeledInfo("Asymptote declination", $"{_transferDetails.DepartureAsyDecl * Rad2Deg:F2} °");
             LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.DepartureC3, "m²/s²", 2));
             LabeledInfo("Δv", ToStringSIPrefixed(_transferDetails.DepartureΔv, "m/s"));
         }
@@ -352,7 +371,6 @@ public class MainWindow : MonoBehaviour
                    GUILayout.ExpandWidth(false),
                    GUILayout.Width(WindowWidth / 3f)))
         {
-            // TODO: calculate actual values for most of these fields; fiddle with the formatting
             GUILayout.Label("Arrival", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.ArrivalTime, true));
             LabeledInfo(
@@ -360,8 +378,8 @@ public class MainWindow : MonoBehaviour
                 ToStringSIPrefixed(_transferDetails.ArrivalPeriapsis, "m"));
             LabeledInfo("Distance between bodies", ToStringSIPrefixed(_transferDetails.ArrivalDistance, "m"));
             GUILayout.Label(""); // Empty row
-            LabeledInfo("Asymptote right ascension", $"{_transferDetails.ArrivalAsyRA * Rad2Deg:N2} °");
-            LabeledInfo("Asymptote declination", $"{_transferDetails.ArrivalAsyDecl * Rad2Deg:N2} °");
+            LabeledInfo("Asymptote right ascension", $"{_transferDetails.ArrivalAsyRA * Rad2Deg:F2} °");
+            LabeledInfo("Asymptote declination", $"{_transferDetails.ArrivalAsyDecl * Rad2Deg:F2} °");
             LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.ArrivalC3, "m²/s²", 2));
             LabeledInfo("Δv", ToStringSIPrefixed(_transferDetails.ArrivalΔv, "m/s"));
         }
@@ -376,20 +394,30 @@ public class MainWindow : MonoBehaviour
                    GUILayout.Width(WindowWidth / 3f)))
         {
             GUILayout.Label("Transfer", _boxTitleStyle);
-            LabeledInfo("Flight time", KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, true));
+            LabeledInfo(
+                "Flight time",
+                KSPUtil.PrintDateDeltaCompact(
+                    _transferDetails.TimeOfFlight, true, false, 2));
             LabeledInfo("Total Δv", ToStringSIPrefixed(_transferDetails.TotalΔv, "m/s"));
         }
 
         GUILayout.FlexibleSpace();
-        if (GUILayout.Button("Show parking orbit in map view"))
-        {
-            // TODO: port from TWP
-        }
+        GUI.enabled = _transferDetails.IsValid;
+        // if (CurrentSceneHasMapView() && GUILayout.Button("Show parking orbit in map view"))
+        // {
+        //     // TODO: port from TWP
+        // }
 
-        if (GUILayout.Button("Show ejection angles in map view"))
+        if (CurrentSceneHasMapView() && GUILayout.Button("Show ejection angles in map view"))
         {
-            // TODO: port from TWP
+            if (_ejectAngleRenderer!.IsDrawing) { _ejectAngleRenderer.HideAngle(); }
+            else
+            {
+                _ejectAngleRenderer.DrawAngle(
+                    _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
+            }
         }
+        GUI.enabled = true;
         GUILayout.EndVertical();
     }
 
