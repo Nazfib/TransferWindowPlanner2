@@ -97,13 +97,9 @@ public static class GuiUtils
                 return true;
             }
 
-            // TODO: test this with RSS and RSSTimeFormatter
             // RSSTimeFormatter: yyyy-MM-dd
-            if (DateTime.TryParseExact(
-                    text, "yyyy-MM-dd",
-                    CultureInfo.CurrentCulture, // Is this correct? Probably...
-                    DateTimeStyles.None,
-                    out var result))
+            // This is a valid date format string for all cultures.
+            if (DateTime.TryParse(text, out var result))
             {
                 var epoch = new DateTime(1951, 1, 1);
                 ut = (result - epoch).TotalSeconds;
