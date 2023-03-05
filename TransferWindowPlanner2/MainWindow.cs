@@ -13,6 +13,7 @@ public class MainWindow : MonoBehaviour
     private const string ModName = "TransferWindowPlanner2";
     private const string Icon = "TransferWindowPlanner2/icon";
     private const string Marker = "TransferWindowPlanner2/marker";
+    private static readonly Vector2 MarkerSize = new(16, 16);
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
@@ -72,7 +73,6 @@ public class MainWindow : MonoBehaviour
     private Solver? _solver;
 
     private MapAngleRenderer? _ejectAngleRenderer;
-    private static readonly Vector2 MarkerSize = new(16, 16);
 
     protected void Awake()
     {
@@ -416,9 +416,9 @@ public class MainWindow : MonoBehaviour
         using (new GuiEnabled(_solver != null))
         {
             // Nullability: the methods can only be called if the buttons are enabled, i.e. when _solver is not null.
-            if (GUILayout.Button("Select minimal departure Δv")) { UpdateTransferDetails(_solver!.MinDepPoint); }
-            if (GUILayout.Button("Select minimal arrival Δv")) { UpdateTransferDetails(_solver!.MinArrPoint); }
-            if (GUILayout.Button("Select minimal total Δv")) { UpdateTransferDetails(_solver!.MinTotalPoint); }
+            if (GUILayout.Button("Minimize departure Δv")) { UpdateTransferDetails(_solver!.MinDepPoint); }
+            if (GUILayout.Button("Minimize arrival Δv")) { UpdateTransferDetails(_solver!.MinArrPoint); }
+            if (GUILayout.Button("Minimize total Δv")) { UpdateTransferDetails(_solver!.MinTotalPoint); }
         }
         GUILayout.FlexibleSpace();
         using (new GuiEnabled(_transferDetails.IsValid))
@@ -430,12 +430,8 @@ public class MainWindow : MonoBehaviour
 
             if (CurrentSceneHasMapView() && GUILayout.Button("Show ejection angles in map view"))
             {
-                if (_ejectAngleRenderer!.IsDrawing) { _ejectAngleRenderer.HideAngle(); }
-                else
-                {
-                    _ejectAngleRenderer.DrawAngle(
-                        _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
-                }
+                if (_ejectAngleRenderer!.IsDrawing) { DisableEjectionRenderer(); }
+                else { EnableEjectionRenderer(); }
             }
         }
     }
@@ -466,12 +462,22 @@ public class MainWindow : MonoBehaviour
             _departureCb, _arrivalCb, _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3,
             _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
 
-        if (_ejectAngleRenderer != null && _ejectAngleRenderer.IsDrawing)
-        {
-            _ejectAngleRenderer.DrawAngle(
-                _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
-        }
+        if (_ejectAngleRenderer != null && _ejectAngleRenderer.IsDrawing) { EnableEjectionRenderer(); }
     }
+
+    private void EnableEjectionRenderer()
+    {
+        if (_ejectAngleRenderer == null) { return; }
+        _ejectAngleRenderer.DrawAngle(
+            _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
+    }
+
+    private void DisableEjectionRenderer()
+    {
+        if (_ejectAngleRenderer == null) { return; }
+        _ejectAngleRenderer.HideAngle();
+    }
+
 
     private static void DrawTexture(Texture2D tex, double[,] c3, double minC3, double maxC3)
     {

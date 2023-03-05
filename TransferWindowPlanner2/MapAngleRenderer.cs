@@ -212,7 +212,7 @@ public class MapAngleRenderer : MonoBehaviour
     internal void OnGUI()
     {
         if (BodyOrigin == null) { return; }
-        if (!MapView.MapIsEnabled || !IsDrawing) { return; }
+        if (!MapView.MapIsEnabled || _currentDrawingState is not DrawingState.DrawingFullPicture) { return; }
 
         var center = BodyOrigin.transform.position;
         var length = 5 * BodyOrigin.Radius;
