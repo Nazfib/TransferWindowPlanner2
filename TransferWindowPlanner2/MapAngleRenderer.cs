@@ -5,7 +5,8 @@ namespace TransferWindowPlanner2;
 
 public class MapAngleRenderer : MonoBehaviour
 {
-    public bool IsDrawing => _currentDrawingState != DrawingState.Hidden;
+    public bool IsDrawing => _currentDrawingState is not DrawingState.Hidden;
+    public bool IsHiding => _currentDrawingState is DrawingState.Hiding or DrawingState.Hidden;
 
     private DateTime _startDrawing;
 

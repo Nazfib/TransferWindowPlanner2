@@ -74,6 +74,8 @@ public class MainWindow : MonoBehaviour
 
     private MapAngleRenderer? _ejectAngleRenderer;
     private ParkingOrbitRenderer? _parkingOrbitRenderer;
+    private bool _showEjectAngle;
+    private bool _showParkingOrbit;
 
     protected void Awake()
     {
@@ -263,11 +265,16 @@ public class MainWindow : MonoBehaviour
 
         using (new GUILayout.VerticalScope(_boxStyle))
         {
-            GUILayout.Label("Origin", _boxTitleStyle);
-            _showDepartureCbWindow = GUILayout.Toggle(
-                _showDepartureCbWindow,
-                _departureCb.displayName.LocalizeRemoveGender(),
-                ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle);
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Origin", _boxTitleStyle);
+                GUILayout.FlexibleSpace();
+                _showDepartureCbWindow = GUILayout.Toggle(
+                    _showDepartureCbWindow,
+                    _departureCb.displayName.LocalizeRemoveGender(),
+                    ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle,
+                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2));
+            }
             LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
             LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
             LabeledDateInput("Earliest", ref _earliestDeparture);
@@ -278,11 +285,16 @@ public class MainWindow : MonoBehaviour
 
         using (new GUILayout.VerticalScope(_boxStyle))
         {
-            GUILayout.Label("Destination", _boxTitleStyle);
-            _showArrivalCbWindow = GUILayout.Toggle(
-                _showArrivalCbWindow,
-                _arrivalCb.displayName.LocalizeRemoveGender(),
-                ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle);
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label("Destination", _boxTitleStyle);
+                GUILayout.FlexibleSpace();
+                _showArrivalCbWindow = GUILayout.Toggle(
+                    _showArrivalCbWindow,
+                    _arrivalCb.displayName.LocalizeRemoveGender(),
+                    ValidCbCombination(_departureCb, _arrivalCb) ? _buttonStyle : _invalidButtonStyle,
+                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2));
+            }
             LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
             _circularize = GUILayout.Toggle(_circularize, "Circularize");
             LabeledDateInput("Earliest", ref _earliestArrival);
@@ -424,18 +436,22 @@ public class MainWindow : MonoBehaviour
         GUILayout.FlexibleSpace();
         using (new GuiEnabled(_transferDetails.IsValid))
         {
-            if (CurrentSceneHasMapView() && GUILayout.Button("Show parking orbit in map view"))
+            if (CurrentSceneHasMapView())
             {
-                if (_parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
-                else { DisableParkingOrbitRenderer(); }
-            }
-
-            if (CurrentSceneHasMapView() && GUILayout.Button("Show ejection angles in map view"))
-            {
-                if (_ejectAngleRenderer!.IsDrawing) { DisableEjectionRenderer(); }
-                else { EnableEjectionRenderer(); }
+                _showParkingOrbit = GUILayout.Toggle(_showParkingOrbit, "Show parking orbit in map view", _buttonStyle);
+                _showEjectAngle = GUILayout.Toggle(_showEjectAngle, "Show ejection angles in map view", _buttonStyle);
             }
         }
+    }
+
+    private void Update()
+    {
+        if (!CurrentSceneHasMapView()) { return; }
+        if (_showParkingOrbit && _parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
+        else if (!_showParkingOrbit && _parkingOrbitRenderer != null) { DisableParkingOrbitRenderer(); }
+
+        if (_showEjectAngle && !_ejectAngleRenderer!.IsDrawing) { EnableEjectionRenderer(); }
+        else if (!_showEjectAngle && !_ejectAngleRenderer!.IsHiding) { DisableEjectionRenderer(); }
     }
 
     private void GeneratePlots()
@@ -464,8 +480,8 @@ public class MainWindow : MonoBehaviour
             _departureCb, _arrivalCb, _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3,
             _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
 
-        if (_ejectAngleRenderer != null && _ejectAngleRenderer.IsDrawing) { EnableEjectionRenderer(); }
-        if (_parkingOrbitRenderer != null) { EnableParkingOrbitRenderer(); }
+        if (_showEjectAngle) { EnableEjectionRenderer(); }
+        if (_showParkingOrbit) { EnableParkingOrbitRenderer(); }
     }
 
     private void EnableParkingOrbitRenderer()
@@ -522,7 +538,8 @@ public class MainWindow : MonoBehaviour
         _latestDeparture.Ut = _earliestDeparture.Ut + departureRange;
 
         var hohmannTime = HohmannTime(
-            _departureCb.referenceBody.gravParameter, _departureCb.orbit.semiMajorAxis, _arrivalCb.orbit.semiMajorAxis);
+            _departureCb.referenceBody.gravParameter, _departureCb.orbit.semiMajorAxis,
+            _arrivalCb.orbit.semiMajorAxis);
         var transferMin = Math.Max(hohmannTime - _arrivalCb.orbit.period, hohmannTime / 2);
         var travelMax = transferMin + Math.Min(2 * _arrivalCb.orbit.period, hohmannTime);
 
