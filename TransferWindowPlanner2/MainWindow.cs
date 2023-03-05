@@ -177,7 +177,8 @@ public class MainWindow : MonoBehaviour
 
     private void WindowGUI(int id)
     {
-        GUILayout.BeginVertical();
+        using var scope = new GUILayout.VerticalScope();
+
         using (new GUILayout.HorizontalScope())
         {
             ShowInputs();
@@ -191,7 +192,6 @@ public class MainWindow : MonoBehaviour
             ShowTransferInfo();
         }
 
-        GUILayout.EndVertical();
         GUI.DragWindow();
     }
 
@@ -219,7 +219,8 @@ public class MainWindow : MonoBehaviour
 
     private CelestialBody? ShowCbSelection(CelestialBody other)
     {
-        GUILayout.BeginVertical();
+        using var scope = new GUILayout.VerticalScope();
+
         foreach (var cb in FlightGlobals.Bodies)
         {
             if (cb.isStar) { continue; }
@@ -229,7 +230,6 @@ public class MainWindow : MonoBehaviour
                     ValidCbCombination(other, cb) ? _buttonStyle : _invalidButtonStyle)) { return cb; }
         }
 
-        GUILayout.EndVertical();
         return null;
     }
 
@@ -255,7 +255,8 @@ public class MainWindow : MonoBehaviour
 
     private void ShowInputs()
     {
-        GUILayout.BeginVertical(GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
+        using var scope = new GUILayout.VerticalScope(
+            GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
 
         GUILayout.FlexibleSpace();
 
@@ -293,12 +294,12 @@ public class MainWindow : MonoBehaviour
 
         GUILayout.FlexibleSpace();
 
-        GUI.enabled = ValidInputs();
-        if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
-        GUI.enabled = true;
+        using (new GuiEnabled(ValidInputs()))
+        {
+            if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
+        }
 
         GUILayout.FlexibleSpace();
-        GUILayout.EndVertical();
     }
 
     private void ShowPlot()
@@ -397,7 +398,8 @@ public class MainWindow : MonoBehaviour
 
     private void ShowTransferInfo()
     {
-        GUILayout.BeginVertical();
+        using var scope = new GUILayout.VerticalScope();
+
         using (new GUILayout.VerticalScope(
                    _boxStyle,
                    GUILayout.ExpandWidth(false),
@@ -412,23 +414,23 @@ public class MainWindow : MonoBehaviour
         }
 
         GUILayout.FlexibleSpace();
-        GUI.enabled = _transferDetails.IsValid;
-        // if (CurrentSceneHasMapView() && GUILayout.Button("Show parking orbit in map view"))
-        // {
-        //     // TODO: port from TWP
-        // }
-
-        if (CurrentSceneHasMapView() && GUILayout.Button("Show ejection angles in map view"))
+        using (new GuiEnabled(_transferDetails.IsValid))
         {
-            if (_ejectAngleRenderer!.IsDrawing) { _ejectAngleRenderer.HideAngle(); }
-            else
+            // if (CurrentSceneHasMapView() && GUILayout.Button("Show parking orbit in map view"))
+            // {
+            //     // TODO: port from TWP
+            // }
+
+            if (CurrentSceneHasMapView() && GUILayout.Button("Show ejection angles in map view"))
             {
-                _ejectAngleRenderer.DrawAngle(
-                    _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
+                if (_ejectAngleRenderer!.IsDrawing) { _ejectAngleRenderer.HideAngle(); }
+                else
+                {
+                    _ejectAngleRenderer.DrawAngle(
+                        _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
+                }
             }
         }
-        GUI.enabled = true;
-        GUILayout.EndVertical();
     }
 
     private void GeneratePlots()
@@ -502,7 +504,8 @@ public class MainWindow : MonoBehaviour
 
     private void LabeledDoubleInput(string label, ref DoubleInput input, string? unit = null)
     {
-        GUILayout.BeginHorizontal();
+        using var scope = new GUILayout.HorizontalScope();
+
         GUILayout.Label(label);
         GUILayout.FlexibleSpace();
         input.Text = GUILayout.TextField(
@@ -510,13 +513,11 @@ public class MainWindow : MonoBehaviour
             input.Valid ? _inputStyle : _invalidInputStyle,
             GUILayout.Width(100));
         if (!string.IsNullOrEmpty(unit)) { GUILayout.Label(unit, GUILayout.ExpandWidth(false)); }
-
-        GUILayout.EndHorizontal();
     }
 
     private void LabeledDateInput(string label, ref DateInput input)
     {
-        GUILayout.BeginHorizontal();
+        using var scope = new GUILayout.HorizontalScope();
 
         GUILayout.Label(label);
         GUILayout.FlexibleSpace();
@@ -525,7 +526,5 @@ public class MainWindow : MonoBehaviour
             input.Text,
             input.Valid ? _inputStyle : _invalidInputStyle,
             GUILayout.Width(100));
-
-        GUILayout.EndHorizontal();
     }
 }
