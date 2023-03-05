@@ -53,9 +53,10 @@ public static class GuiUtils
             _text = KSPUtil.PrintDateCompact(ut, false);
             Valid = true;
 
-            _stockDateRegex = // Ynn, Dnn
-                Localizer.Format("#autoLOC_6002344") + @"(\d+), " +
-                Localizer.Format("#autoLOC_6002345") + @"(\d+)";
+            // Ynn, Dnn
+            var year = Localizer.Format("#autoLOC_6002344");
+            var day = Localizer.Format("#autoLOC_6002345");
+            _stockDateRegex = $@"^{year}(\d+),?\s*{day}(\d+)$";
         }
 
         public double Ut
@@ -87,8 +88,7 @@ public static class GuiUtils
         private bool TryParseDate(string text, out double ut)
         {
             // Stock format: Ynn, Dnn
-
-            var match = Regex.Match(text, _stockDateRegex, RegexOptions.Compiled);
+            var match = Regex.Match(text, _stockDateRegex, RegexOptions.Compiled | RegexOptions.IgnoreCase);
             if (match.Success)
             {
                 var year = int.Parse(match.Groups[1].Value);
