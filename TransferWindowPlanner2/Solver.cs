@@ -8,6 +8,11 @@ public class Solver
     private readonly int _nDepartures;
     private readonly int _nArrivals;
 
+    private readonly Vector3d[] _depPos;
+    private readonly Vector3d[] _depVel;
+    private readonly Vector3d[] _arrPos;
+    private readonly Vector3d[] _arrVel;
+
     internal readonly double[,] DepΔv;
     internal readonly double[,] ArrΔv;
     internal readonly double[,] TotalΔv;
@@ -30,6 +35,12 @@ public class Solver
         _nDepartures = nDepartures;
         _nArrivals = nArrivals;
 
+        _depPos = new Vector3d[nDepartures];
+        _depVel = new Vector3d[nDepartures];
+        _arrPos = new Vector3d[nArrivals];
+        _arrVel = new Vector3d[nArrivals];
+        // 400 * (4*24) = 37.5 kiB
+
         DepΔv = new double[nDepartures, nArrivals];
         ArrΔv = new double[nDepartures, nArrivals];
         TotalΔv = new double[nDepartures, nArrivals];
@@ -51,6 +62,15 @@ public class Solver
         _departurePeR = cbOrigin.Radius + departureAltitude;
         _arrivalPeR = cbDestination.Radius + departureAltitude;
         _circularize = circularize;
+
+        for (var i = 0; i < _nDepartures; ++i)
+        {
+            BodyStateVectorsAt(_cbOrigin, DepartureTime(i), out _depPos[i], out _depVel[i]);
+        }
+        for (var j = 0; j < _nArrivals; ++j)
+        {
+            BodyStateVectorsAt(_cbDestination, ArrivalTime(j), out _arrPos[j], out _arrVel[j]);
+        }
         SolveAllProblems();
     }
 
@@ -62,14 +82,23 @@ public class Solver
 
     internal (double, double) TimesFor(int i, int j)
     {
-        var depStep = (_latestDeparture - _earliestDeparture) / (_nDepartures - 1);
-        var arrStep = (_latestArrival - _earliestArrival) / (_nArrivals - 1);
+        return (DepartureTime(i), ArrivalTime(j));
+    }
 
-        // Left to right -> increasing departure time
-        var tDep = _earliestDeparture + i * depStep;
+    private double ArrivalTime(int j)
+    {
         // Top to bottom -> decreasing arrival time
+        var arrStep = (_latestArrival - _earliestArrival) / (_nArrivals - 1);
         var tArr = _latestArrival - j * arrStep;
-        return (tDep, tArr);
+        return tArr;
+    }
+
+    private double DepartureTime(int i)
+    {
+        // Left to right -> increasing departure time
+        var depStep = (_latestDeparture - _earliestDeparture) / (_nDepartures - 1);
+        var tDep = _earliestDeparture + i * depStep;
+        return tDep;
     }
 
     private void SolveAllProblems()
@@ -87,10 +116,15 @@ public class Solver
             var timeOfFlight = tArr - tDep;
             if (timeOfFlight > 0)
             {
+                var depPos = _depPos[i];
+                var arrPos = _arrPos[j];
+                var depCbVel = _depVel[i];
+                var arrCbVel = _arrVel[j];
+
                 SolveSingleProblem(
-                    _cbOrigin, _cbDestination, tDep, tArr,
-                    out _, out _,
-                    out var depCbVel, out var arrCbVel,
+                    _cbOrigin.referenceBody.gravParameter, tArr - tDep,
+                    depPos, arrPos,
+                    depCbVel, arrCbVel,
                     out var depVel, out var arrVel);
 
                 var depC3 = (depVel - depCbVel).sqrMagnitude;
@@ -176,13 +210,13 @@ public class Solver
     {
         if (tArr < tDep) { return new TransferDetails(); }
 
+        BodyStateVectorsAt(origin, tDep, out var depPos, out var depCbVel);
+        BodyStateVectorsAt(destination, tArr, out var arrPos, out var arrCbVel);
         SolveSingleProblem(
-            origin,
-            destination, tDep, tArr,
-            out var depPos,
-            out var arrPos,
-            out var depCbVel,
-            out var arrCbVel,
+            origin.referenceBody.gravParameter,
+            tArr - tDep,
+            depPos, arrPos,
+            depCbVel, arrCbVel,
             out var depVel,
             out var arrVel
         );
@@ -245,30 +279,27 @@ public class Solver
         };
     }
 
-    private static void SolveSingleProblem(
-        CelestialBody origin, CelestialBody destination,
-        double tDep, double tArr,
-        out Vector3d depPos, out Vector3d arrPos,
-        out Vector3d depCbVel, out Vector3d arrCbVel,
-        out Vector3d depVel, out Vector3d arrVel)
+    private static void BodyStateVectorsAt(CelestialBody body, double t, out Vector3d pos, out Vector3d vel)
     {
-        // TODO: we're calculating the same value 400 times for each. Look into caching it.
         // Unity internally uses a left-handed coordinate system, with the +y axis pointing to the North pole. However,
         // the Orbit class methods return coordinates with the y and z axes flipped; this creates a right-handed
         // coordinate system with the +z axis pointing to the north pole.
         // We need to use the methods taking a true anomaly instead of those taking an UT, because the TrueAnomaly
         // methods have a boolean parameter to skip the WorldToLocal conversion (which rotates the resulting vector away
         // from the Planetarium system to align with the global Unity coordinate system).
-        var taDep = origin.orbit.TrueAnomalyAtUT(tDep);
-        var taArr = destination.orbit.TrueAnomalyAtUT(tArr);
-        origin.orbit.GetOrbitalStateVectorsAtTrueAnomaly(taDep, tDep, false, out depPos, out depCbVel);
-        destination.orbit.GetOrbitalStateVectorsAtTrueAnomaly(taArr, tArr, false, out arrPos, out arrCbVel);
+        var ta = body.orbit.TrueAnomalyAtUT(t);
+        body.orbit.GetOrbitalStateVectorsAtTrueAnomaly(ta, t, false, out pos, out vel);
+    }
 
-        var mu = origin.referenceBody.gravParameter;
-
+    private static void SolveSingleProblem(
+        double mu, double tof,
+        Vector3d depPos, Vector3d arrPos,
+        Vector3d depCbVel, Vector3d arrCbVel,
+        out Vector3d depVel, out Vector3d arrVel)
+    {
         MechJebLib.Maths.Gooding.Solve(
             mu, depPos, depCbVel, arrPos,
-            tArr - tDep, 0,
+            tof, 0,
             out depVel, out arrVel);
     }
 }
