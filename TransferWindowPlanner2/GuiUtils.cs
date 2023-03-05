@@ -130,7 +130,7 @@ public static class GuiUtils
 
         var scaled = value * Math.Pow(1000, -(steps * exponent));
 
-        var integerDigits = order - steps * 3;
+        var integerDigits = order - steps * 3 * exponent;
         var fracDigits = Math.Max(0, sigFigs - integerDigits - 1);
 
         return steps switch
@@ -146,7 +146,7 @@ public static class GuiUtils
         return HighLogic.LoadedScene is GameScenes.FLIGHT or GameScenes.TRACKSTATION;
     }
 
-    public struct GuiEnabled : IDisposable
+    public readonly struct GuiEnabled : IDisposable
     {
         private readonly bool _prev;
 
