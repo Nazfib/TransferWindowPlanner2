@@ -12,6 +12,7 @@ public class MainWindow : MonoBehaviour
 {
     private const string ModName = "TransferWindowPlanner2";
     private const string Icon = "TransferWindowPlanner2/icon";
+    private const string Marker = "TransferWindowPlanner2/marker";
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
@@ -48,13 +49,14 @@ public class MainWindow : MonoBehaviour
     private Rect _departureCbWinPos = new(200, 200, 200, 200);
     private bool _showArrivalCbWindow;
     private Rect _arrivalCbWinPos = new(300, 200, 200, 200);
+    private Rect _plotPosition;
 
     // Input fields
     private CelestialBody _departureCb = null!; // Nullability: Initialized in `Start()`
     private CelestialBody _arrivalCb = null!; // Nullability: Initialized in `Start()`
     private DoubleInput _departureAltitude = new(100.0);
     private DoubleInput _departureInclination = new(0.0);
-    private DoubleInput _arrivalAltitude = new(150.0);
+    private DoubleInput _arrivalAltitude = new(100.0);
     private bool _circularize = true;
 
     private DateInput _earliestDeparture = new(0.0);
@@ -64,11 +66,13 @@ public class MainWindow : MonoBehaviour
 
     private DoubleInput _plotMargin = new(5.0);
 
+    private (int, int) _selectedTransfer;
     private Solver.TransferDetails _transferDetails;
 
     private Solver? _solver;
 
     private MapAngleRenderer? _ejectAngleRenderer;
+    private static readonly Vector2 MarkerSize = new(16, 16);
 
     protected void Awake()
     {
@@ -315,14 +319,14 @@ public class MainWindow : MonoBehaviour
                 _plotBoxStyle,
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
                 GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
+            _plotPosition = GUILayoutUtility.GetLastRect();
 
             if (_solver == null) { return; }
 
-            var rect = GUILayoutUtility.GetLastRect();
             var mousePos = Event.current.mousePosition;
-            if (rect.Contains(mousePos))
+            if (_plotPosition.Contains(mousePos))
             {
-                var pos = mousePos - rect.position;
+                var pos = mousePos - _plotPosition.position;
                 var i = (int)pos.x;
                 var j = (int)pos.y;
                 var (dep, arr) = _solver.TimesFor(i, j);
@@ -340,6 +344,12 @@ public class MainWindow : MonoBehaviour
                     UpdateTransferDetails((i, j));
                 }
             }
+            var selected = new Vector2(_selectedTransfer.Item1, _selectedTransfer.Item2);
+            var tex = GameDatabase.Instance.GetTexture(Marker, false);
+            var markerPosition = _plotPosition.position + selected - 0.5f * MarkerSize;
+            GUI.Box(
+                new Rect(markerPosition, MarkerSize), tex,
+                GUIStyle.none);
         }
     }
 
@@ -442,6 +452,7 @@ public class MainWindow : MonoBehaviour
     {
         if (_solver == null) { return; }
         var (tDep, tArr) = _solver.TimesFor(point);
+        _selectedTransfer = point;
         _transferDetails = Solver.CalculateDetails(
             _departureCb, _arrivalCb, _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3,
             _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
