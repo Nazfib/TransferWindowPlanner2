@@ -73,6 +73,7 @@ public class MainWindow : MonoBehaviour
     private Solver? _solver;
 
     private MapAngleRenderer? _ejectAngleRenderer;
+    private ParkingOrbitRenderer? _parkingOrbitRenderer;
 
     protected void Awake()
     {
@@ -423,10 +424,11 @@ public class MainWindow : MonoBehaviour
         GUILayout.FlexibleSpace();
         using (new GuiEnabled(_transferDetails.IsValid))
         {
-            // if (CurrentSceneHasMapView() && GUILayout.Button("Show parking orbit in map view"))
-            // {
-            //     // TODO: port from TWP
-            // }
+            if (CurrentSceneHasMapView() && GUILayout.Button("Show parking orbit in map view"))
+            {
+                if (_parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
+                else { DisableParkingOrbitRenderer(); }
+            }
 
             if (CurrentSceneHasMapView() && GUILayout.Button("Show ejection angles in map view"))
             {
@@ -463,6 +465,24 @@ public class MainWindow : MonoBehaviour
             _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
 
         if (_ejectAngleRenderer != null && _ejectAngleRenderer.IsDrawing) { EnableEjectionRenderer(); }
+        if (_parkingOrbitRenderer != null) { EnableParkingOrbitRenderer(); }
+    }
+
+    private void EnableParkingOrbitRenderer()
+    {
+        if (_parkingOrbitRenderer != null) { _parkingOrbitRenderer.Cleanup(); }
+        _parkingOrbitRenderer = ParkingOrbitRenderer.Setup(
+            _departureCb,
+            _transferDetails.DeparturePeriapsis,
+            _transferDetails.DepartureInclination * Rad2Deg,
+            _transferDetails.DepartureLAN * Rad2Deg);
+    }
+
+    private void DisableParkingOrbitRenderer()
+    {
+        if (_parkingOrbitRenderer == null) { return; }
+        _parkingOrbitRenderer.Cleanup();
+        _parkingOrbitRenderer = null;
     }
 
     private void EnableEjectionRenderer()
