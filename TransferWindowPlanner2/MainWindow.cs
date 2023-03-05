@@ -413,6 +413,13 @@ public class MainWindow : MonoBehaviour
             LabeledInfo("Total Δv", ToStringSIPrefixed(_transferDetails.TotalΔv, "m/s"));
         }
 
+        using (new GuiEnabled(_solver != null))
+        {
+            // Nullability: the methods can only be called if the buttons are enabled, i.e. when _solver is not null.
+            if (GUILayout.Button("Select minimal departure Δv")) { UpdateTransferDetails(_solver!.MinDepPoint); }
+            if (GUILayout.Button("Select minimal arrival Δv")) { UpdateTransferDetails(_solver!.MinArrPoint); }
+            if (GUILayout.Button("Select minimal total Δv")) { UpdateTransferDetails(_solver!.MinTotalPoint); }
+        }
         GUILayout.FlexibleSpace();
         using (new GuiEnabled(_transferDetails.IsValid))
         {
@@ -458,6 +465,12 @@ public class MainWindow : MonoBehaviour
         _transferDetails = Solver.CalculateDetails(
             _departureCb, _arrivalCb, _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3,
             _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
+
+        if (_ejectAngleRenderer != null && _ejectAngleRenderer.IsDrawing)
+        {
+            _ejectAngleRenderer.DrawAngle(
+                _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
+        }
     }
 
     private static void DrawTexture(Texture2D tex, double[,] c3, double minC3, double maxC3)
