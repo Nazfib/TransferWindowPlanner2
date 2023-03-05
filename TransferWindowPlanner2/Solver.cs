@@ -1,4 +1,5 @@
 using System;
+using System.ComponentModel;
 using static TransferWindowPlanner2.MathUtils;
 
 namespace TransferWindowPlanner2;
@@ -20,8 +21,6 @@ public class Solver
     internal double MinDepΔv, MinArrΔv, MinTotalΔv;
     internal (int, int) MinDepPoint, MinArrPoint, MinTotalPoint;
 
-    private CelestialBody? _cbOrigin;
-    private CelestialBody? _cbDestination;
     private double _earliestDeparture;
     private double _latestDeparture;
     private double _earliestArrival;
@@ -29,6 +28,20 @@ public class Solver
     private double _departurePeR;
     private double _arrivalPeR;
     private bool _circularize;
+    private double _soiDeparture;
+    private double _soiArrival;
+    private double _gravParameterTransfer;
+    private double _gravParameterDeparture;
+    private double _gravParameterArrival;
+
+    private readonly BackgroundWorker _backgroundWorker;
+
+    internal enum BackgroundWorkerState
+    {
+        Idle, Working, Done,
+    }
+
+    internal BackgroundWorkerState WorkerState = BackgroundWorkerState.Idle;
 
     public Solver(int nDepartures, int nArrivals)
     {
@@ -45,6 +58,8 @@ public class Solver
         ArrΔv = new double[nDepartures, nArrivals];
         TotalΔv = new double[nDepartures, nArrivals];
         // (400 * 400) * (3*8) = 3.66 MiB
+
+        _backgroundWorker = new BackgroundWorker();
     }
 
     public void GeneratePorkchop(
@@ -53,25 +68,33 @@ public class Solver
         double earliestArrival, double latestArrival,
         double departureAltitude, double arrivalAltitude, bool circularize)
     {
-        _cbOrigin = cbOrigin;
-        _cbDestination = cbDestination;
         _earliestDeparture = earliestDeparture;
         _latestDeparture = latestDeparture;
         _earliestArrival = earliestArrival;
         _latestArrival = latestArrival;
         _departurePeR = cbOrigin.Radius + departureAltitude;
-        _arrivalPeR = cbDestination.Radius + departureAltitude;
+        _arrivalPeR = cbDestination.Radius + arrivalAltitude;
         _circularize = circularize;
+
+        _soiDeparture = cbOrigin.sphereOfInfluence;
+        _soiArrival = cbDestination.sphereOfInfluence;
+        _gravParameterDeparture = cbOrigin.gravParameter;
+        _gravParameterArrival = cbDestination.gravParameter;
+        _gravParameterTransfer = cbOrigin.referenceBody.gravParameter;
 
         for (var i = 0; i < _nDepartures; ++i)
         {
-            BodyStateVectorsAt(_cbOrigin, DepartureTime(i), out _depPos[i], out _depVel[i]);
+            BodyStateVectorsAt(cbOrigin, DepartureTime(i), out _depPos[i], out _depVel[i]);
         }
         for (var j = 0; j < _nArrivals; ++j)
         {
-            BodyStateVectorsAt(_cbDestination, ArrivalTime(j), out _arrPos[j], out _arrVel[j]);
+            BodyStateVectorsAt(cbDestination, ArrivalTime(j), out _arrPos[j], out _arrVel[j]);
         }
-        SolveAllProblems();
+
+        WorkerState = BackgroundWorkerState.Working;
+        _backgroundWorker.DoWork += (_, _) => { SolveAllProblems(); };
+        _backgroundWorker.RunWorkerCompleted += (_, _) => { WorkerState = BackgroundWorkerState.Done; };
+        _backgroundWorker.RunWorkerAsync();
     }
 
     internal (double, double) TimesFor((int, int) tuple)
@@ -103,8 +126,6 @@ public class Solver
 
     private void SolveAllProblems()
     {
-        if (_cbOrigin == null || _cbDestination == null) { return; }
-
         MinDepΔv = MinArrΔv = MinTotalΔv = double.PositiveInfinity;
 
         for (var i = 0; i < _nDepartures; ++i)
@@ -122,14 +143,14 @@ public class Solver
                 var arrCbVel = _arrVel[j];
 
                 SolveSingleProblem(
-                    _cbOrigin.referenceBody.gravParameter, tArr - tDep,
+                    _gravParameterTransfer, tArr - tDep,
                     depPos, arrPos,
                     depCbVel, arrCbVel,
                     out var depVel, out var arrVel);
 
                 var depC3 = (depVel - depCbVel).sqrMagnitude;
                 var depΔv = DepΔv[i, j] = ΔvForC3(
-                    _cbOrigin.gravParameter, _cbOrigin.sphereOfInfluence, depC3, _departurePeR, true);
+                    _gravParameterDeparture, _soiDeparture, depC3, _departurePeR, true);
                 if (depΔv < MinDepΔv)
                 {
                     MinDepΔv = depΔv;
@@ -138,7 +159,7 @@ public class Solver
 
                 var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
                 var arrΔv = ArrΔv[i, j] = ΔvForC3(
-                    _cbDestination.gravParameter, _cbDestination.sphereOfInfluence, arrC3, _arrivalPeR, _circularize);
+                    _gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize);
                 if (arrΔv < MinArrΔv)
                 {
                     MinArrΔv = arrΔv;

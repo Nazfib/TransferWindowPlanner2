@@ -70,7 +70,7 @@ public class MainWindow : MonoBehaviour
     private (int, int) _selectedTransfer;
     private Solver.TransferDetails _transferDetails;
 
-    private Solver? _solver;
+    private Solver _solver = null!; // Initialized in Awake()
 
     private MapAngleRenderer? _ejectAngleRenderer;
     private ParkingOrbitRenderer? _parkingOrbitRenderer;
@@ -84,6 +84,7 @@ public class MainWindow : MonoBehaviour
         {
             _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
         }
+        _solver = new Solver(PlotWidth, PlotHeight);
     }
 
     protected void Start()
@@ -307,7 +308,7 @@ public class MainWindow : MonoBehaviour
 
         GUILayout.FlexibleSpace();
 
-        using (new GuiEnabled(ValidInputs()))
+        using (new GuiEnabled(ValidInputs() && _solver.WorkerState is Solver.BackgroundWorkerState.Idle))
         {
             if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
         }
@@ -317,6 +318,8 @@ public class MainWindow : MonoBehaviour
 
     private void ShowPlot()
     {
+        if (_solver.WorkerState is Solver.BackgroundWorkerState.Done) { OnSolverDone(); }
+
         using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
         {
             _selectedPlot = (PlotType)GUILayout.SelectionGrid(
@@ -334,8 +337,6 @@ public class MainWindow : MonoBehaviour
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
                 GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
             _plotPosition = GUILayoutUtility.GetLastRect();
-
-            if (_solver == null) { return; }
 
             var mousePos = Event.current.mousePosition;
             if (_plotPosition.Contains(mousePos))
@@ -426,16 +427,13 @@ public class MainWindow : MonoBehaviour
             LabeledInfo("Total Δv", ToStringSIPrefixed(_transferDetails.TotalΔv, "m/s"));
         }
 
-        using (new GuiEnabled(_solver != null))
-        {
-            // Nullability: the methods can only be called if the buttons are enabled, i.e. when _solver is not null.
-            if (GUILayout.Button("Minimize departure Δv")) { UpdateTransferDetails(_solver!.MinDepPoint); }
-            if (GUILayout.Button("Minimize arrival Δv")) { UpdateTransferDetails(_solver!.MinArrPoint); }
-            if (GUILayout.Button("Minimize total Δv")) { UpdateTransferDetails(_solver!.MinTotalPoint); }
-        }
-        GUILayout.FlexibleSpace();
         using (new GuiEnabled(_transferDetails.IsValid))
         {
+            if (GUILayout.Button("Minimize departure Δv")) { UpdateTransferDetails(_solver.MinDepPoint); }
+            if (GUILayout.Button("Minimize arrival Δv")) { UpdateTransferDetails(_solver.MinArrPoint); }
+            if (GUILayout.Button("Minimize total Δv")) { UpdateTransferDetails(_solver.MinTotalPoint); }
+            GUILayout.FlexibleSpace();
+
             if (CurrentSceneHasMapView())
             {
                 _showParkingOrbit = GUILayout.Toggle(_showParkingOrbit, "Show parking orbit in map view", _buttonStyle);
@@ -456,24 +454,32 @@ public class MainWindow : MonoBehaviour
 
     private void GeneratePlots()
     {
-        _solver ??= new Solver(PlotWidth, PlotHeight);
+        if (_solver.WorkerState is not Solver.BackgroundWorkerState.Idle)
+        {
+            Debug.LogError($"Solver is already working!");
+            return;
+        }
 
         _solver.GeneratePorkchop(
             _departureCb, _arrivalCb,
             _earliestDeparture.Ut, _latestDeparture.Ut,
             _earliestArrival.Ut, _latestArrival.Ut,
             _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3, _circularize);
+    }
 
+    private void OnSolverDone()
+    {
         DrawTexture(_plotDeparture, _solver.DepΔv, _solver.MinDepΔv, _solver.MinDepΔv * _plotMargin.Value);
         DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinDepΔv * _plotMargin.Value);
         DrawTexture(_plotTotal, _solver.TotalΔv, _solver.MinTotalΔv, _solver.MinDepΔv * _plotMargin.Value);
-
         UpdateTransferDetails(_solver.MinTotalPoint);
+
+        // Reset it for the next time
+        _solver.WorkerState = Solver.BackgroundWorkerState.Idle;
     }
 
     private void UpdateTransferDetails((int, int) point)
     {
-        if (_solver == null) { return; }
         var (tDep, tArr) = _solver.TimesFor(point);
         _selectedTransfer = point;
         _transferDetails = Solver.CalculateDetails(
