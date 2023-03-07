@@ -262,8 +262,6 @@ public class MainWindow : MonoBehaviour
         using var scope = new GUILayout.VerticalScope(
             GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
 
-        GUILayout.FlexibleSpace();
-
         using (new GUILayout.VerticalScope(_boxStyle))
         {
             using (new GUILayout.HorizontalScope())
@@ -281,8 +279,6 @@ public class MainWindow : MonoBehaviour
             LabeledDateInput("Earliest", ref _earliestDeparture);
             LabeledDateInput("Latest", ref _latestDeparture);
         }
-
-        GUILayout.FlexibleSpace();
 
         using (new GUILayout.VerticalScope(_boxStyle))
         {
@@ -304,10 +300,9 @@ public class MainWindow : MonoBehaviour
 
         LabeledDoubleInput("Plot margin", ref _plotMargin);
 
-        if (GUILayout.Button("Reset times")) { ResetTimes(); }
-
         GUILayout.FlexibleSpace();
 
+        if (GUILayout.Button("Reset times")) { ResetTimes(); }
         using (new GuiEnabled(ValidInputs() && _solver.WorkerState is Solver.BackgroundWorkerState.Idle))
         {
             if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
