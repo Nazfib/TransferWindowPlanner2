@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using UnityEngine;
 using static TransferWindowPlanner2.MathUtils;
 
 namespace TransferWindowPlanner2;
@@ -97,16 +98,9 @@ public class Solver
         _backgroundWorker.RunWorkerAsync();
     }
 
-    internal (double, double) TimesFor((int, int) tuple)
-    {
-        var (i, j) = tuple;
-        return TimesFor(i, j);
-    }
+    internal (double, double) TimesFor((int i, int j) t) => TimesFor(t.i, t.j);
 
-    internal (double, double) TimesFor(int i, int j)
-    {
-        return (DepartureTime(i), ArrivalTime(j));
-    }
+    internal (double, double) TimesFor(int i, int j) => (DepartureTime(i), ArrivalTime(j));
 
     private double ArrivalTime(int j)
     {
@@ -180,6 +174,8 @@ public class Solver
     public struct TransferDetails
     {
         public bool IsValid;
+        public CelestialBody Origin;
+        public CelestialBody Destination;
 
         // Departure:
         public double DepartureTime;
@@ -221,6 +217,22 @@ public class Solver
         public double TimeOfFlight;
 
         public double TotalΔv;
+        public bool IsShort => TimeOfFlight < 25 * KSPUtil.dateTimeFormatter.Day;
+
+        public string Description() =>
+            $@"Transfer: {KSPUtil.PrintDateDelta(TimeOfFlight, IsShort)}
+Departure: {KSPUtil.PrintDate(DepartureTime, IsShort)}
+    Altitude: {GuiUtils.ToStringSIPrefixed(DeparturePeriapsis, "m")}
+    Inclination: {Mathf.Rad2Deg * DepartureInclination:N2} °
+    LAN: {Mathf.Rad2Deg * DepartureLAN:N2} °
+    C3: {GuiUtils.ToStringSIPrefixed(DepartureC3, "m²/s²", 2)}
+    Δv: {GuiUtils.ToStringSIPrefixed(DepartureΔv, "m/s")}
+Arrival: {KSPUtil.PrintDate(ArrivalTime, IsShort)}
+    Altitude: {GuiUtils.ToStringSIPrefixed(ArrivalPeriapsis, "m")}
+    Distance between bodies: {GuiUtils.ToStringSIPrefixed(ArrivalDistance, "m")}
+    C3: {GuiUtils.ToStringSIPrefixed(ArrivalC3, "m²/s²", 2)}
+    Δv: {GuiUtils.ToStringSIPrefixed(ArrivalΔv, "m/s")}
+Total Δv: {GuiUtils.ToStringSIPrefixed(TotalΔv, "m/s")}";
     }
 
     public static TransferDetails CalculateDetails(
@@ -278,6 +290,8 @@ public class Solver
         return new TransferDetails
         {
             IsValid = true,
+            Origin = origin,
+            Destination = destination,
             DepartureTime = tDep,
             DeparturePeriapsis = depPeA,
             DepartureInclination = depInc,

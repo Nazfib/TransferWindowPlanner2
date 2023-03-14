@@ -4,10 +4,7 @@ namespace TransferWindowPlanner2;
 
 public static class MathUtils
 {
-    public static double SynodicPeriod(double p1, double p2)
-    {
-        return Math.Abs(1 / (1 / p1 - 1 / p2));
-    }
+    public static double SynodicPeriod(double p1, double p2) => Math.Abs(1 / (1 / p1 - 1 / p2));
 
     public static double HohmannTime(double mu, double sma1, double sma2)
     {
@@ -15,10 +12,8 @@ public static class MathUtils
         return Math.PI * Math.Sqrt(a * a * a / mu);
     }
 
-    private static double PeriapsisVelocitySquared(double mu, double sphereOfInfluence, double c3, double periapsis)
-    {
-        return 2 * mu / periapsis + c3 - 2 * mu / sphereOfInfluence;
-    }
+    private static double PeriapsisVelocitySquared(double mu, double sphereOfInfluence, double c3, double periapsis) =>
+        2 * mu / periapsis + c3 - 2 * mu / sphereOfInfluence;
 
     public static double ΔvForC3(double mu, double sphereOfInfluence, double c3, double periapsis, bool circularize)
     {

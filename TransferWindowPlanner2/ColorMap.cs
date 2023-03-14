@@ -14,20 +14,13 @@ public static class ColorMap
         return ColorValues[t];
     }
 
-    public static Color MapColorReverse(float value, float min, float max)
-    {
-        return MapColor(-value, -max, -min);
-    }
+    public static Color MapColorReverse(float value, float min, float max) => MapColor(-value, -max, -min);
 
-    public static Color MapColorLogarithmic(float value, float min, float max)
-    {
-        return MapColor(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
-    }
+    public static Color MapColorLogarithmic(float value, float min, float max) =>
+        MapColor(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
 
-    public static Color MapColorLogarithmicReverse(float value, float min, float max)
-    {
-        return MapColorReverse(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
-    }
+    public static Color MapColorLogarithmicReverse(float value, float min, float max) =>
+        MapColorReverse(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
 
     private static readonly Color[] ColorValues =
     {

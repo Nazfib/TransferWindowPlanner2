@@ -137,10 +137,8 @@ public static class GuiUtils
         };
     }
 
-    internal static bool CurrentSceneHasMapView()
-    {
-        return HighLogic.LoadedScene is GameScenes.FLIGHT or GameScenes.TRACKSTATION;
-    }
+    internal static bool CurrentSceneHasMapView() =>
+        HighLogic.LoadedScene is GameScenes.FLIGHT or GameScenes.TRACKSTATION;
 
     public readonly struct GuiEnabled : IDisposable
     {

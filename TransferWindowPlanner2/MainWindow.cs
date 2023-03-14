@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using KSP.UI.Screens;
 using UnityEngine;
 using static TransferWindowPlanner2.MathUtils;
@@ -65,7 +66,7 @@ public class MainWindow : MonoBehaviour
     private DateInput _earliestArrival = new(0.0);
     private DateInput _latestArrival = new(0.0);
 
-    private DoubleInput _plotMargin = new(5.0);
+    private DoubleInput _plotMargin = new(2.0);
 
     private (int, int) _selectedTransfer;
     private Solver.TransferDetails _transferDetails;
@@ -89,6 +90,8 @@ public class MainWindow : MonoBehaviour
 
     protected void Start()
     {
+        KACWrapper.InitKACWrapper();
+
         _boxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
         _inputStyle = new GUIStyle(HighLogic.Skin.textField) { alignment = TextAnchor.MiddleRight };
         _invalidInputStyle = new GUIStyle(_inputStyle)
@@ -237,25 +240,21 @@ public class MainWindow : MonoBehaviour
         return null;
     }
 
-    private static bool ValidCbCombination(CelestialBody cb1, CelestialBody cb2)
-    {
-        return cb1 != cb2 &&
-               !cb1.isStar && !cb2.isStar &&
-               cb1.referenceBody == cb2.referenceBody;
-    }
+    private static bool ValidCbCombination(CelestialBody cb1, CelestialBody cb2) =>
+        cb1 != cb2 &&
+        !cb1.isStar && !cb2.isStar &&
+        cb1.referenceBody == cb2.referenceBody;
 
-    private bool ValidInputs()
-    {
-        return ValidCbCombination(_departureCb, _arrivalCb) &&
-               _departureAltitude.Valid &&
-               _departureInclination.Valid &&
-               _earliestDeparture.Valid &&
-               _latestDeparture.Valid &&
-               _arrivalAltitude.Valid &&
-               _earliestArrival.Valid &&
-               _latestArrival.Valid &&
-               _plotMargin.Valid;
-    }
+    private bool ValidInputs() =>
+        ValidCbCombination(_departureCb, _arrivalCb) &&
+        _departureAltitude.Valid &&
+        _departureInclination.Valid &&
+        _earliestDeparture.Valid &&
+        _latestDeparture.Valid &&
+        _arrivalAltitude.Valid &&
+        _earliestArrival.Valid &&
+        _latestArrival.Valid &&
+        _plotMargin.Valid;
 
     private void ShowInputs()
     {
@@ -365,13 +364,20 @@ public class MainWindow : MonoBehaviour
 
     private void ShowDepartureInfo()
     {
+        using var scope = new GUILayout.VerticalScope();
+
+        using (new GuiEnabled(_transferDetails.IsValid))
+        {
+            if (GUILayout.Button("Minimize departure Δv")) { UpdateTransferDetails(_solver.MinDepPoint); }
+        }
+
         using (new GUILayout.VerticalScope(
                    _boxStyle,
                    GUILayout.ExpandWidth(false),
                    GUILayout.Width(WindowWidth / 3f)))
         {
             GUILayout.Label("Departure", _boxTitleStyle);
-            LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.DepartureTime, true));
+            LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.DepartureTime, _transferDetails.IsShort));
             LabeledInfo(
                 "Periapsis altitude",
                 ToStringSIPrefixed(_transferDetails.DeparturePeriapsis, "m"));
@@ -386,13 +392,20 @@ public class MainWindow : MonoBehaviour
 
     private void ShowArrivalInfo()
     {
+        using var scope = new GUILayout.VerticalScope();
+
+        using (new GuiEnabled(_transferDetails.IsValid))
+        {
+            if (GUILayout.Button("Minimize arrival Δv")) { UpdateTransferDetails(_solver.MinArrPoint); }
+        }
+
         using (new GUILayout.VerticalScope(
                    _boxStyle,
                    GUILayout.ExpandWidth(false),
                    GUILayout.Width(WindowWidth / 3f)))
         {
             GUILayout.Label("Arrival", _boxTitleStyle);
-            LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.ArrivalTime, true));
+            LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.ArrivalTime, _transferDetails.IsShort));
             LabeledInfo(
                 "Periapsis altitude",
                 ToStringSIPrefixed(_transferDetails.ArrivalPeriapsis, "m"));
@@ -408,6 +421,10 @@ public class MainWindow : MonoBehaviour
     private void ShowTransferInfo()
     {
         using var scope = new GUILayout.VerticalScope();
+        using (new GuiEnabled(_transferDetails.IsValid))
+        {
+            if (GUILayout.Button("Minimize total Δv")) { UpdateTransferDetails(_solver.MinTotalPoint); }
+        }
 
         using (new GUILayout.VerticalScope(
                    _boxStyle,
@@ -418,17 +435,14 @@ public class MainWindow : MonoBehaviour
             LabeledInfo(
                 "Flight time",
                 KSPUtil.PrintDateDeltaCompact(
-                    _transferDetails.TimeOfFlight, true, false, 2));
+                    _transferDetails.TimeOfFlight, _transferDetails.IsShort, false, 2));
             LabeledInfo("Total Δv", ToStringSIPrefixed(_transferDetails.TotalΔv, "m/s"));
         }
 
         using (new GuiEnabled(_transferDetails.IsValid))
         {
-            if (GUILayout.Button("Minimize departure Δv")) { UpdateTransferDetails(_solver.MinDepPoint); }
-            if (GUILayout.Button("Minimize arrival Δv")) { UpdateTransferDetails(_solver.MinArrPoint); }
-            if (GUILayout.Button("Minimize total Δv")) { UpdateTransferDetails(_solver.MinTotalPoint); }
-            GUILayout.FlexibleSpace();
-
+            if (GUILayout.Button("Create alarm")) { CreateAlarm(); }
+            if (KACWrapper.APIReady && GUILayout.Button("Create KAC alarm")) { CreateKACAlarm(); }
             if (CurrentSceneHasMapView())
             {
                 _showParkingOrbit = GUILayout.Toggle(_showParkingOrbit, "Show parking orbit in map view", _buttonStyle);
@@ -515,6 +529,30 @@ public class MainWindow : MonoBehaviour
         _ejectAngleRenderer.Hide();
     }
 
+    private void CreateAlarm()
+    {
+        var alarm = new TWPAlarm(_transferDetails);
+        AlarmClockScenario.AddAlarm(alarm);
+    }
+
+    private void CreateKACAlarm()
+    {
+        var tmpID = KACWrapper.KAC.CreateAlarm(
+            KACWrapper.KACAPI.AlarmTypeEnum.TransferModelled,
+            string.Format(
+                "{0} -> {1} ({2})",
+                _transferDetails.Origin.bodyDisplayName.LocalizeRemoveGender(),
+                _transferDetails.Destination.bodyDisplayName.LocalizeRemoveGender(),
+                KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, _transferDetails.IsShort)),
+            _transferDetails.DepartureTime - 24 * 60 * 60);
+
+        var alarm = KACWrapper.KAC.Alarms.First(a => a.ID == tmpID);
+        alarm.Notes = _transferDetails.Description();
+        alarm.AlarmMargin = 24 * 60 * 60;
+        alarm.AlarmAction = KACWrapper.KACAPI.AlarmActionEnum.KillWarp;
+        alarm.XferOriginBodyName = _transferDetails.Origin.bodyDisplayName.LocalizeRemoveGender();
+        alarm.XferTargetBodyName = _transferDetails.Destination.bodyDisplayName.LocalizeRemoveGender();
+    }
 
     private static void DrawTexture(Texture2D tex, double[,] c3, double minC3, double maxC3)
     {
@@ -522,7 +560,7 @@ public class MainWindow : MonoBehaviour
         {
             for (var j = 0; j < PlotHeight; ++j)
             {
-                var color = ColorMap.MapColorLogarithmicReverse((float)c3[i, j], (float)minC3, (float)maxC3);
+                var color = ColorMap.MapColorReverse((float)c3[i, j], (float)minC3, (float)maxC3);
                 tex.SetPixel(i, PlotHeight - j - 1, color);
             }
         }
