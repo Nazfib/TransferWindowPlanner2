@@ -3,6 +3,8 @@ using UnityEngine;
 
 namespace TransferWindowPlanner2;
 
+using static RenderUtils;
+
 public class MapAngleRenderer : MonoBehaviour
 {
     public bool IsDrawing => _currentDrawingState is not DrawingState.Hidden;
@@ -78,25 +80,6 @@ public class MapAngleRenderer : MonoBehaviour
         };
     }
 
-    private static LineRenderer InitLine(
-        GameObject objToAttach, Color lineColor, int vertexCount, int initialWidth, Material linesMaterial)
-    {
-        objToAttach.layer = 9;
-        var lineReturn = objToAttach.AddComponent<LineRenderer>();
-
-        lineReturn.material = linesMaterial;
-        lineReturn.startColor = lineColor;
-        lineReturn.endColor = lineColor;
-        lineReturn.transform.parent = null;
-        lineReturn.useWorldSpace = true;
-        lineReturn.startWidth = initialWidth;
-        lineReturn.endWidth = initialWidth;
-        lineReturn.positionCount = vertexCount;
-        lineReturn.enabled = false;
-
-        return lineReturn;
-    }
-
 
     private void OnDestroy()
     {
@@ -112,7 +95,7 @@ public class MapAngleRenderer : MonoBehaviour
         _objLineArc.DestroyGameObject();
     }
 
-    public void DrawAngle(CelestialBody bodyOrigin, Vector3d asymptote, Vector3d periapsis)
+    public void Draw(CelestialBody bodyOrigin, Vector3d asymptote, Vector3d periapsis)
     {
         BodyOrigin = bodyOrigin;
         AsymptoteDirection = asymptote.normalized;
@@ -122,17 +105,10 @@ public class MapAngleRenderer : MonoBehaviour
         _currentDrawingState = DrawingState.DrawingLinesAppearing;
     }
 
-    public void HideAngle()
+    public void Hide()
     {
         _startDrawing = DateTime.Now;
         _currentDrawingState = DrawingState.Hiding;
-    }
-
-    private static Vector3d VectorToUnityFrame(Vector3d v)
-    {
-        v.Swizzle(); // Swap y and z axes
-        v = Planetarium.Rotation * v;
-        return v;
     }
 
     internal void OnPreCull()
@@ -157,6 +133,7 @@ public class MapAngleRenderer : MonoBehaviour
         //Are we Showing, Hiding or Static State
         float pctDone;
 
+        var center = BodyOrigin.transform.position;
         switch (_currentDrawingState)
         {
             case DrawingState.Hidden:
@@ -172,7 +149,7 @@ public class MapAngleRenderer : MonoBehaviour
                 pctDone = Mathf.Clamp01(pctDone);
 
                 var partialAsymptote = asymptote * Mathf.Lerp(0, (float)lineLength, pctDone);
-                DrawLine(_lineStart, Vector3d.zero, partialAsymptote);
+                DrawLine(_lineStart, center, Vector3d.zero, partialAsymptote);
                 break;
 
             case DrawingState.DrawingArcAppearing:
@@ -182,15 +159,15 @@ public class MapAngleRenderer : MonoBehaviour
 
                 Vector3d partialPeriapsis = Vector3.Slerp(asymptote, periapsis, pctDone);
 
-                DrawLine(_lineStart, Vector3d.zero, asymptote * lineLength);
-                DrawLine(_lineEnd, Vector3d.zero, partialPeriapsis * lineLength);
-                DrawArc(_lineArc, asymptote, partialPeriapsis, arcRadius);
+                DrawLine(_lineStart, center, Vector3d.zero, asymptote * lineLength);
+                DrawLine(_lineEnd, center, Vector3d.zero, partialPeriapsis * lineLength);
+                DrawArc(_lineArc, center, asymptote, partialPeriapsis, arcRadius, ArcPoints);
                 break;
 
             case DrawingState.DrawingFullPicture:
-                DrawLine(_lineStart, Vector3d.zero, asymptote * lineLength);
-                DrawLine(_lineEnd, Vector3d.zero, periapsis * lineLength);
-                DrawArc(_lineArc, asymptote, periapsis, arcRadius);
+                DrawLine(_lineStart, center, Vector3d.zero, asymptote * lineLength);
+                DrawLine(_lineEnd, center, Vector3d.zero, periapsis * lineLength);
+                DrawArc(_lineArc, center, asymptote, periapsis, arcRadius, ArcPoints);
                 break;
 
             case DrawingState.Hiding:
@@ -201,9 +178,9 @@ public class MapAngleRenderer : MonoBehaviour
                 var partialLineLength = Mathf.Lerp((float)lineLength, 0, pctDone);
                 var partialArcRadius = Mathf.Lerp((float)arcRadius, 0, pctDone);
 
-                DrawLine(_lineStart, Vector3d.zero, asymptote * partialLineLength);
-                DrawLine(_lineEnd, Vector3d.zero, periapsis * partialLineLength);
-                DrawArc(_lineArc, asymptote, periapsis, partialArcRadius);
+                DrawLine(_lineStart, center, Vector3d.zero, asymptote * partialLineLength);
+                DrawLine(_lineEnd, center, Vector3d.zero, periapsis * partialLineLength);
+                DrawArc(_lineArc, center, asymptote, periapsis, partialArcRadius, ArcPoints);
                 break;
             default:
                 throw new ArgumentOutOfRangeException();
@@ -237,33 +214,5 @@ public class MapAngleRenderer : MonoBehaviour
                 Screen.height - asymptote.y - 15,
                 100, 30),
             "Escape direction", _styleLabelTarget);
-    }
-
-    private void DrawArc(LineRenderer line, Vector3d start, Vector3d end, double radius)
-    {
-        if (BodyOrigin == null) { return; }
-
-        Vector3d center = BodyOrigin.transform.position;
-        for (var i = 0; i < ArcPoints; i++)
-        {
-            var t = (float)i / (ArcPoints - 1);
-            // I'd like to use Vector3d.Slerp here, but it throws a MissingMethodException.
-            Vector3d arcSegment = Vector3.Slerp(start, end, t);
-            line.SetPosition(i, ScaledSpace.LocalToScaledSpace(center + arcSegment * radius));
-        }
-
-        line.startWidth = line.endWidth = 10f / 1000f * PlanetariumCamera.fetch.Distance;
-        line.enabled = true;
-    }
-
-    private void DrawLine(LineRenderer line, Vector3d pointStart, Vector3d pointEnd)
-    {
-        if (BodyOrigin == null) { return; }
-
-        Vector3d center = BodyOrigin.transform.position;
-        line.SetPosition(0, ScaledSpace.LocalToScaledSpace(center + pointStart));
-        line.SetPosition(1, ScaledSpace.LocalToScaledSpace(center + pointEnd));
-        line.startWidth = line.endWidth = 10f / 1000f * PlanetariumCamera.fetch.Distance;
-        line.enabled = true;
     }
 }

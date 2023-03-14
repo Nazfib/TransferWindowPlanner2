@@ -465,8 +465,8 @@ public class MainWindow : MonoBehaviour
     private void OnSolverDone()
     {
         DrawTexture(_plotDeparture, _solver.DepΔv, _solver.MinDepΔv, _solver.MinDepΔv * _plotMargin.Value);
-        DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinDepΔv * _plotMargin.Value);
-        DrawTexture(_plotTotal, _solver.TotalΔv, _solver.MinTotalΔv, _solver.MinDepΔv * _plotMargin.Value);
+        DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinArrΔv * _plotMargin.Value);
+        DrawTexture(_plotTotal, _solver.TotalΔv, _solver.MinTotalΔv, _solver.MinTotalΔv * _plotMargin.Value);
         UpdateTransferDetails(_solver.MinTotalPoint);
 
         // Reset it for the next time
@@ -505,14 +505,14 @@ public class MainWindow : MonoBehaviour
     private void EnableEjectionRenderer()
     {
         if (_ejectAngleRenderer == null) { return; }
-        _ejectAngleRenderer.DrawAngle(
+        _ejectAngleRenderer.Draw(
             _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
     }
 
     private void DisableEjectionRenderer()
     {
         if (_ejectAngleRenderer == null) { return; }
-        _ejectAngleRenderer.HideAngle();
+        _ejectAngleRenderer.Hide();
     }
 
 
