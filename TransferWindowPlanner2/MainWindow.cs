@@ -385,7 +385,7 @@ public class MainWindow : MonoBehaviour
             LabeledInfo("LAN", $"{_transferDetails.DepartureLAN * Rad2Deg:F2} °");
             LabeledInfo("Asymptote right ascension", $"{_transferDetails.DepartureAsyRA * Rad2Deg:F2} °");
             LabeledInfo("Asymptote declination", $"{_transferDetails.DepartureAsyDecl * Rad2Deg:F2} °");
-            LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.DepartureC3, "m²/s²", 2));
+            LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.DepartureC3, "m²/s²", 2, 4));
             LabeledInfo("Δv", ToStringSIPrefixed(_transferDetails.DepartureΔv, "m/s"));
         }
     }
@@ -413,7 +413,7 @@ public class MainWindow : MonoBehaviour
             GUILayout.Label(""); // Empty row
             LabeledInfo("Asymptote right ascension", $"{_transferDetails.ArrivalAsyRA * Rad2Deg:F2} °");
             LabeledInfo("Asymptote declination", $"{_transferDetails.ArrivalAsyDecl * Rad2Deg:F2} °");
-            LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.ArrivalC3, "m²/s²", 2));
+            LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.ArrivalC3, "m²/s²", 2, 4));
             LabeledInfo("Δv", ToStringSIPrefixed(_transferDetails.ArrivalΔv, "m/s"));
         }
     }
