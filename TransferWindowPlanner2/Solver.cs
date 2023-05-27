@@ -1,7 +1,10 @@
 using System;
 using System.ComponentModel;
+using MechJebLib.Core;
+using MechJebLib.Primitives;
+using static MechJebLib.Utils.Statics;
 using UnityEngine;
-using static TransferWindowPlanner2.MathUtils;
+using static TransferWindowPlanner2.MoreMaths;
 
 namespace TransferWindowPlanner2;
 
@@ -10,10 +13,10 @@ public class Solver
     private readonly int _nDepartures;
     private readonly int _nArrivals;
 
-    private readonly Vector3d[] _depPos;
-    private readonly Vector3d[] _depVel;
-    private readonly Vector3d[] _arrPos;
-    private readonly Vector3d[] _arrVel;
+    private readonly V3[] _depPos;
+    private readonly V3[] _depVel;
+    private readonly V3[] _arrPos;
+    private readonly V3[] _arrVel;
 
     internal readonly double[,] DepΔv;
     internal readonly double[,] ArrΔv;
@@ -49,10 +52,10 @@ public class Solver
         _nDepartures = nDepartures;
         _nArrivals = nArrivals;
 
-        _depPos = new Vector3d[nDepartures];
-        _depVel = new Vector3d[nDepartures];
-        _arrPos = new Vector3d[nArrivals];
-        _arrVel = new Vector3d[nArrivals];
+        _depPos = new V3[nDepartures];
+        _depVel = new V3[nDepartures];
+        _arrPos = new V3[nArrivals];
+        _arrVel = new V3[nArrivals];
         // 400 * (4*24) = 37.5 kiB
 
         DepΔv = new double[nDepartures, nArrivals];
@@ -85,11 +88,11 @@ public class Solver
 
         for (var i = 0; i < _nDepartures; ++i)
         {
-            BodyStateVectorsAt(cbOrigin, DepartureTime(i), out _depPos[i], out _depVel[i]);
+            (_depPos[i], _depVel[i]) = BodyStateVectorsAt(cbOrigin.orbit, DepartureTime(i));
         }
         for (var j = 0; j < _nArrivals; ++j)
         {
-            BodyStateVectorsAt(cbDestination, ArrivalTime(j), out _arrPos[j], out _arrVel[j]);
+            (_arrPos[j], _arrVel[j]) = BodyStateVectorsAt(cbDestination.orbit, ArrivalTime(j));
         }
 
         WorkerState = BackgroundWorkerState.Working;
@@ -97,6 +100,11 @@ public class Solver
         _backgroundWorker.RunWorkerCompleted += (_, _) => { WorkerState = BackgroundWorkerState.Done; };
         _backgroundWorker.RunWorkerAsync();
     }
+
+    private static (V3, V3) BodyStateVectorsAt(Orbit orbit, double time) =>
+        Maths.StateVectorsFromKeplerian(
+            orbit.referenceBody.gravParameter, orbit.semiLatusRectum, orbit.eccentricity, orbit.inclination, orbit.LAN,
+            orbit.argumentOfPeriapsis, time);
 
     internal (double, double) TimesFor((int i, int j) t) => TimesFor(t.i, t.j);
 
@@ -129,45 +137,42 @@ public class Solver
             var (tDep, tArr) = TimesFor(i, j);
 
             var timeOfFlight = tArr - tDep;
-            if (timeOfFlight > 0)
+            if (timeOfFlight <= 0)
             {
-                var depPos = _depPos[i];
-                var arrPos = _arrPos[j];
-                var depCbVel = _depVel[i];
-                var arrCbVel = _arrVel[j];
-
-                SolveSingleProblem(
-                    _gravParameterTransfer, tArr - tDep,
-                    depPos, arrPos,
-                    depCbVel, arrCbVel,
-                    out var depVel, out var arrVel);
-
-                var depC3 = (depVel - depCbVel).sqrMagnitude;
-                var depΔv = DepΔv[i, j] = ΔvForC3(
-                    _gravParameterDeparture, _soiDeparture, depC3, _departurePeR, true);
-                if (depΔv < MinDepΔv)
-                {
-                    MinDepΔv = depΔv;
-                    MinDepPoint = (i, j);
-                }
-
-                var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
-                var arrΔv = ArrΔv[i, j] = ΔvForC3(
-                    _gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize);
-                if (arrΔv < MinArrΔv)
-                {
-                    MinArrΔv = arrΔv;
-                    MinArrPoint = (i, j);
-                }
-
-                var totalΔv = TotalΔv[i, j] = depΔv + arrΔv;
-                if (totalΔv < MinTotalΔv)
-                {
-                    MinTotalΔv = totalΔv;
-                    MinTotalPoint = (i, j);
-                }
+                DepΔv[i, j] = ArrΔv[i, j] = TotalΔv[i, j] = double.NaN;
+                continue;
             }
-            else { DepΔv[i, j] = ArrΔv[i, j] = TotalΔv[i, j] = double.NaN; }
+
+            var depPos = _depPos[i];
+            var arrPos = _arrPos[j];
+            var depCbVel = _depVel[i];
+            var arrCbVel = _arrVel[j];
+
+            var tof = tArr - tDep;
+            var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, depCbVel, arrPos, tof, 0);
+
+            var depC3 = (depVel - depCbVel).sqrMagnitude;
+            var depΔv = DepΔv[i, j] = ΔvFromC3(_gravParameterDeparture, _soiDeparture, depC3, _departurePeR, true);
+            if (depΔv < MinDepΔv)
+            {
+                MinDepΔv = depΔv;
+                MinDepPoint = (i, j);
+            }
+
+            var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
+            var arrΔv = ArrΔv[i, j] = ΔvFromC3(_gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize);
+            if (arrΔv < MinArrΔv)
+            {
+                MinArrΔv = arrΔv;
+                MinArrPoint = (i, j);
+            }
+
+            var totalΔv = TotalΔv[i, j] = depΔv + arrΔv;
+            if (totalΔv < MinTotalΔv)
+            {
+                MinTotalΔv = totalΔv;
+                MinTotalPoint = (i, j);
+            }
         }
     }
 
@@ -186,9 +191,9 @@ public class Solver
 
         public double DepartureLAN;
 
-        public Vector3d DepartureVInf;
+        public V3 DepartureVInf;
 
-        public Vector3d DeparturePeDirection;
+        public V3 DeparturePeDirection;
 
         public double DepartureAsyRA;
 
@@ -222,37 +227,32 @@ public class Solver
         public string Description() =>
             $@"Transfer: {KSPUtil.PrintDateDelta(TimeOfFlight, IsShort)}
 Departure: {KSPUtil.PrintDate(DepartureTime, IsShort)}
-    Altitude: {GuiUtils.ToStringSIPrefixed(DeparturePeriapsis, "m")}
-    Inclination: {Mathf.Rad2Deg * DepartureInclination:N2} °
-    LAN: {Mathf.Rad2Deg * DepartureLAN:N2} °
-    C3: {GuiUtils.ToStringSIPrefixed(DepartureC3, "m²/s²", 2)}
-    Δv: {GuiUtils.ToStringSIPrefixed(DepartureΔv, "m/s")}
+    Altitude: {DeparturePeriapsis.ToSI()}m
+    Inclination: {Rad2Deg(DepartureInclination):N2} °
+    LAN: {Rad2Deg(DepartureLAN):N2} °
+    C3: {DepartureC3 / 1e6:F2}km²/s²
+    Δv: {DepartureΔv.ToSI()}m/s
 Arrival: {KSPUtil.PrintDate(ArrivalTime, IsShort)}
-    Altitude: {GuiUtils.ToStringSIPrefixed(ArrivalPeriapsis, "m")}
-    Distance between bodies: {GuiUtils.ToStringSIPrefixed(ArrivalDistance, "m")}
-    C3: {GuiUtils.ToStringSIPrefixed(ArrivalC3, "m²/s²", 2)}
-    Δv: {GuiUtils.ToStringSIPrefixed(ArrivalΔv, "m/s")}
-Total Δv: {GuiUtils.ToStringSIPrefixed(TotalΔv, "m/s")}";
+    Altitude:{ArrivalPeriapsis.ToSI()}m
+    Distance between bodies: {ArrivalDistance.ToSI()}m
+    C3: {ArrivalC3 / 1e6:F2}km²/s²
+    Δv: {ArrivalΔv.ToSI()}m/s
+Total Δv: {TotalΔv.ToSI()}m/s";
     }
 
     public static TransferDetails CalculateDetails(
         CelestialBody origin, CelestialBody destination,
         double depPeA, double arrPeA,
-        double depInc, bool circularize,
+        double depMinInc, bool circularize,
         double tDep, double tArr)
     {
-        if (tArr < tDep) { return new TransferDetails(); }
+        if (tArr < tDep) { return new TransferDetails { IsValid = false }; }
 
-        BodyStateVectorsAt(origin, tDep, out var depPos, out var depCbVel);
-        BodyStateVectorsAt(destination, tArr, out var arrPos, out var arrCbVel);
-        SolveSingleProblem(
-            origin.referenceBody.gravParameter,
-            tArr - tDep,
-            depPos, arrPos,
-            depCbVel, arrCbVel,
-            out var depVel,
-            out var arrVel
-        );
+        var (depPos, depCbVel) = BodyStateVectorsAt(origin.orbit, tDep);
+        var (arrPos, arrCbVel) = BodyStateVectorsAt(destination.orbit, tArr);
+        var timeOfFlight = tArr - tDep;
+        var (depVel, arrVel) = Gooding.Solve(
+            origin.referenceBody.gravParameter, depPos, depCbVel, arrPos, timeOfFlight, 0);
         var depPeR = depPeA + origin.Radius;
         var arrPeR = arrPeA + destination.Radius;
 
@@ -262,30 +262,24 @@ Total Δv: {GuiUtils.ToStringSIPrefixed(TotalΔv, "m/s")}";
         var depC3 = depVInf.sqrMagnitude;
         var arrC3 = arrVInf.sqrMagnitude;
 
-        var depΔv = ΔvForC3(origin.gravParameter, origin.sphereOfInfluence, depC3, depPeR, true);
-        var arrΔv = ΔvForC3(destination.gravParameter, destination.sphereOfInfluence, arrC3, arrPeR, circularize);
+        var depΔv = ΔvFromC3(origin.gravParameter, origin.sphereOfInfluence, depC3, depPeR, true);
+        var arrΔv = ΔvFromC3(destination.gravParameter, destination.sphereOfInfluence, arrC3, arrPeR, circularize);
 
-        // See the comment in SolveSingleProblem
-        var arrDepTa = origin.orbit.TrueAnomalyAtUT(tArr);
-        var arrDistance = (origin.orbit.getPositionFromTrueAnomaly(arrDepTa, false) - arrPos).magnitude;
+        var (originPosAtArrival, _) = BodyStateVectorsAt(origin.orbit, tArr);
+        var arrDistance = (originPosAtArrival - arrPos).magnitude;
 
-        var depAsyRA = Wrap2Pi(Math.Atan2(depVInf.y, depVInf.x));
-        var arrAsyRA = Wrap2Pi(Math.Atan2(arrVInf.y, arrVInf.x));
+        var depAsySpherical = depVInf.cart2sph;
+        var depAsyDecl = depAsySpherical[1];
+        var depAsyRA = depAsySpherical[2];
 
-        var depAsyDecl = Math.Asin(depVInf.z / depVInf.magnitude);
-        var arrAsyDecl = Math.Asin(arrVInf.z / arrVInf.magnitude);
+        var arrAsySpherical = arrVInf.cart2sph;
+        var arrAsyDecl = arrAsySpherical[1];
+        var arrAsyRA = arrAsySpherical[2];
 
-        double depLAN;
-        if (Math.Abs(depAsyDecl) < depInc) { depLAN = depAsyRA - Math.Asin(Math.Tan(depAsyDecl) / Math.Tan(depInc)); }
-        else
-        {
-            depInc = Math.Abs(depAsyDecl);
-            depLAN = depAsyRA - 0.5 * Math.PI * Math.Sign(depAsyDecl);
-        }
-        depLAN = Wrap2Pi(depLAN);
+        var (depInc, depLAN) = LANAndIncForAsymptote(depMinInc, depAsyDecl, depAsyRA);
 
         var depPeDir = PeriapsisDirection(
-            origin.gravParameter, origin.sphereOfInfluence, depVInf, depPeR, depInc, depLAN);
+            origin.gravParameter, origin.sphereOfInfluence, depVInf, depPeR, depMinInc, depLAN);
 
         return new TransferDetails
         {
@@ -309,32 +303,8 @@ Total Δv: {GuiUtils.ToStringSIPrefixed(TotalΔv, "m/s")}";
             ArrivalAsyDecl = arrAsyDecl,
             ArrivalC3 = arrC3,
             ArrivalΔv = arrΔv,
-            TimeOfFlight = tArr - tDep,
+            TimeOfFlight = timeOfFlight,
             TotalΔv = depΔv + arrΔv,
         };
-    }
-
-    private static void BodyStateVectorsAt(CelestialBody body, double t, out Vector3d pos, out Vector3d vel)
-    {
-        // Unity internally uses a left-handed coordinate system, with the +y axis pointing to the North pole. However,
-        // the Orbit class methods return coordinates with the y and z axes flipped; this creates a right-handed
-        // coordinate system with the +z axis pointing to the north pole.
-        // We need to use the methods taking a true anomaly instead of those taking an UT, because the TrueAnomaly
-        // methods have a boolean parameter to skip the WorldToLocal conversion (which rotates the resulting vector away
-        // from the Planetarium system to align with the global Unity coordinate system).
-        var ta = body.orbit.TrueAnomalyAtUT(t);
-        body.orbit.GetOrbitalStateVectorsAtTrueAnomaly(ta, t, false, out pos, out vel);
-    }
-
-    private static void SolveSingleProblem(
-        double mu, double tof,
-        Vector3d depPos, Vector3d arrPos,
-        Vector3d depCbVel, Vector3d arrCbVel,
-        out Vector3d depVel, out Vector3d arrVel)
-    {
-        MechJebLib.Maths.Gooding.Solve(
-            mu, depPos, depCbVel, arrPos,
-            tof, 0,
-            out depVel, out arrVel);
     }
 }

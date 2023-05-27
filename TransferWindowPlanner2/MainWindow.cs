@@ -1,8 +1,9 @@
 using System;
 using System.Linq;
 using KSP.UI.Screens;
+using static MechJebLib.Utils.Statics;
 using UnityEngine;
-using static TransferWindowPlanner2.MathUtils;
+using static TransferWindowPlanner2.MoreMaths;
 
 namespace TransferWindowPlanner2;
 
@@ -19,8 +20,6 @@ public class MainWindow : MonoBehaviour
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
     private const int WindowHeight = 600;
-
-    private const double Rad2Deg = 180.0 / Math.PI;
 
     private readonly Texture2D _plotArrival = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
     private readonly Texture2D _plotDeparture = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
@@ -341,9 +340,9 @@ public class MainWindow : MonoBehaviour
                 var (dep, arr) = _solver.TimesFor(i, j);
                 var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}\n"
                               + $"Arrival: {KSPUtil.PrintDateCompact(arr, false)}\n"
-                              + $"Eject: {ToStringSIPrefixed(_solver.DepΔv[i, j], "m/s")}\n"
-                              + $"Insert: {ToStringSIPrefixed(_solver.ArrΔv[i, j], "m/s")}\n"
-                              + $"Total: {ToStringSIPrefixed(_solver.TotalΔv[i, j], "m/s")}";
+                              + $"Eject: {_solver.DepΔv[i, j].ToSI()}m/s\n"
+                              + $"Insert: {_solver.ArrΔv[i, j].ToSI()}m/s\n"
+                              + $"Total: {_solver.TotalΔv[i, j].ToSI()}m/s";
                 var size = _plotTooltipStyle.CalcSize(new GUIContent(tooltip));
                 GUI.Label(
                     new Rect(mousePos.x + 25, mousePos.y - 5, size.x, size.y),
@@ -378,15 +377,13 @@ public class MainWindow : MonoBehaviour
         {
             GUILayout.Label("Departure", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.DepartureTime, _transferDetails.IsShort));
-            LabeledInfo(
-                "Periapsis altitude",
-                ToStringSIPrefixed(_transferDetails.DeparturePeriapsis, "m"));
-            LabeledInfo("Inclination", $"{_transferDetails.DepartureInclination * Rad2Deg:F2} °");
-            LabeledInfo("LAN", $"{_transferDetails.DepartureLAN * Rad2Deg:F2} °");
-            LabeledInfo("Asymptote right ascension", $"{_transferDetails.DepartureAsyRA * Rad2Deg:F2} °");
-            LabeledInfo("Asymptote declination", $"{_transferDetails.DepartureAsyDecl * Rad2Deg:F2} °");
-            LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.DepartureC3, "m²/s²", 2, 4));
-            LabeledInfo("Δv", ToStringSIPrefixed(_transferDetails.DepartureΔv, "m/s"));
+            LabeledInfo("Periapsis altitude", $"{_transferDetails.DeparturePeriapsis.ToSI()}m");
+            LabeledInfo("Inclination", $"{Rad2Deg(_transferDetails.DepartureInclination):F2} °");
+            LabeledInfo("LAN", $"{Rad2Deg(_transferDetails.DepartureLAN):F2} °");
+            LabeledInfo("Asymptote right ascension", $"{Rad2Deg(_transferDetails.DepartureAsyRA):F2} °");
+            LabeledInfo("Asymptote declination", $"{Rad2Deg(_transferDetails.DepartureAsyDecl):F2} °");
+            LabeledInfo("C3", $"{_transferDetails.DepartureC3 / 1e6:F2}km²/s²");
+            LabeledInfo("Δv", $"{_transferDetails.DepartureΔv.ToSI()}m/s");
         }
     }
 
@@ -406,15 +403,13 @@ public class MainWindow : MonoBehaviour
         {
             GUILayout.Label("Arrival", _boxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.ArrivalTime, _transferDetails.IsShort));
-            LabeledInfo(
-                "Periapsis altitude",
-                ToStringSIPrefixed(_transferDetails.ArrivalPeriapsis, "m"));
-            LabeledInfo("Distance between bodies", ToStringSIPrefixed(_transferDetails.ArrivalDistance, "m"));
+            LabeledInfo("Periapsis altitude", $"{_transferDetails.ArrivalPeriapsis.ToSI()}m");
+            LabeledInfo("Distance between bodies", $"{_transferDetails.ArrivalDistance.ToSI()}m");
             GUILayout.Label(""); // Empty row
-            LabeledInfo("Asymptote right ascension", $"{_transferDetails.ArrivalAsyRA * Rad2Deg:F2} °");
-            LabeledInfo("Asymptote declination", $"{_transferDetails.ArrivalAsyDecl * Rad2Deg:F2} °");
-            LabeledInfo("C3", ToStringSIPrefixed(_transferDetails.ArrivalC3, "m²/s²", 2, 4));
-            LabeledInfo("Δv", ToStringSIPrefixed(_transferDetails.ArrivalΔv, "m/s"));
+            LabeledInfo("Asymptote right ascension", $"{Rad2Deg(_transferDetails.ArrivalAsyRA):F2} °");
+            LabeledInfo("Asymptote declination", $"{Rad2Deg(_transferDetails.ArrivalAsyDecl):F2} °");
+            LabeledInfo("C3", $"{_transferDetails.ArrivalC3 / 1e6:F2}km²/s²");
+            LabeledInfo("Δv", $"{_transferDetails.ArrivalΔv.ToSI()}m/s");
         }
     }
 
@@ -436,7 +431,7 @@ public class MainWindow : MonoBehaviour
                 "Flight time",
                 KSPUtil.PrintDateDeltaCompact(
                     _transferDetails.TimeOfFlight, _transferDetails.IsShort, false, 2));
-            LabeledInfo("Total Δv", ToStringSIPrefixed(_transferDetails.TotalΔv, "m/s"));
+            LabeledInfo("Total Δv", $"{_transferDetails.TotalΔv.ToSI()}m/s");
         }
 
         using (new GuiEnabled(_transferDetails.IsValid))
@@ -493,7 +488,7 @@ public class MainWindow : MonoBehaviour
         _selectedTransfer = point;
         _transferDetails = Solver.CalculateDetails(
             _departureCb, _arrivalCb, _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3,
-            _departureInclination.Value / Rad2Deg, _circularize, tDep, tArr);
+            Deg2Rad(_departureInclination.Value), _circularize, tDep, tArr);
 
         if (_showEjectAngle) { EnableEjectionRenderer(); }
         if (_showParkingOrbit) { EnableParkingOrbitRenderer(); }
@@ -505,8 +500,8 @@ public class MainWindow : MonoBehaviour
         _parkingOrbitRenderer = ParkingOrbitRenderer.Setup(
             _departureCb,
             _transferDetails.DeparturePeriapsis,
-            _transferDetails.DepartureInclination * Rad2Deg,
-            _transferDetails.DepartureLAN * Rad2Deg);
+            Rad2Deg(_transferDetails.DepartureInclination),
+            Rad2Deg(_transferDetails.DepartureLAN));
     }
 
     private void DisableParkingOrbitRenderer()
@@ -519,8 +514,16 @@ public class MainWindow : MonoBehaviour
     private void EnableEjectionRenderer()
     {
         if (_ejectAngleRenderer == null) { return; }
-        _ejectAngleRenderer.Draw(
-            _departureCb, _transferDetails.DepartureVInf, _transferDetails.DeparturePeDirection);
+        var vInf = new Vector3d(
+            _transferDetails.DepartureVInf.x,
+            _transferDetails.DepartureVInf.y,
+            _transferDetails.DepartureVInf.z);
+        var peDir = new Vector3d(
+            _transferDetails.DeparturePeDirection.x,
+            _transferDetails.DeparturePeDirection.y,
+            _transferDetails.DeparturePeDirection.z);
+
+        _ejectAngleRenderer.Draw(_departureCb, vInf, peDir);
     }
 
     private void DisableEjectionRenderer()

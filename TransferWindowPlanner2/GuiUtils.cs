@@ -111,32 +111,6 @@ public static class GuiUtils
         }
     }
 
-    private static readonly string[] SmallPrefixes = { "m", "μ", "n", "p", "f", "a", "z", "y" };
-    private static readonly string[] LargePrefixes = { "k", "M", "G", "T", "P", "E", "Z", "Y" };
-
-    public static string ToStringSIPrefixed(double value, string unit, int exponent = 1, int sigFigs = 3)
-    {
-        if (value == 0.0 || !double.IsFinite(value)) { return value.ToString("N3") + $" {unit}"; }
-
-        var order = (int)Math.Floor(Math.Log10(Math.Abs(value)));
-        var steps = order < 0 ? (order - 2) / (3 * exponent) : order / (3 * exponent);
-
-        if (steps > 0 && steps > LargePrefixes.Length) { steps = LargePrefixes.Length; }
-        if (steps < 0 && -steps > SmallPrefixes.Length) { steps = -SmallPrefixes.Length; }
-
-        var scaled = value * Math.Pow(1000, -(steps * exponent));
-
-        var integerDigits = order - steps * 3 * exponent;
-        var fracDigits = Math.Max(0, sigFigs - integerDigits - 1);
-
-        return steps switch
-        {
-            0 => scaled.ToString($"N{fracDigits}") + $" {unit}",
-            > 0 => scaled.ToString($"N{fracDigits}") + $" {LargePrefixes[steps - 1]}{unit}",
-            < 0 => scaled.ToString($"N{fracDigits}") + $" {SmallPrefixes[-steps - 1]}{unit}",
-        };
-    }
-
     internal static bool CurrentSceneHasMapView() =>
         HighLogic.LoadedScene is GameScenes.FLIGHT or GameScenes.TRACKSTATION;
 
