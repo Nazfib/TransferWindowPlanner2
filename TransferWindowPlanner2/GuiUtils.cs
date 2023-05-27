@@ -4,8 +4,8 @@ using System.Text.RegularExpressions;
 using KSP.Localization;
 using UnityEngine;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
 public static class GuiUtils
 {
     public struct DoubleInput
@@ -112,7 +112,8 @@ public static class GuiUtils
     }
 
     internal static bool CurrentSceneHasMapView() =>
-        HighLogic.LoadedScene is GameScenes.FLIGHT or GameScenes.TRACKSTATION;
+        HighLogic.LoadedScene is GameScenes.FLIGHT
+        || HighLogic.LoadedScene is GameScenes.TRACKSTATION;
 
     public readonly struct GuiEnabled : IDisposable
     {
@@ -129,4 +130,5 @@ public static class GuiUtils
             GUI.enabled = _prev;
         }
     }
+}
 }

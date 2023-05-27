@@ -3,10 +3,10 @@ using System.Linq;
 using KSP.UI.Screens;
 using static MechJebLib.Utils.Statics;
 using UnityEngine;
-using static TransferWindowPlanner2.MoreMaths;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
+using static MoreMaths;
 using static GuiUtils;
 
 [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
@@ -15,15 +15,15 @@ public class MainWindow : MonoBehaviour
     private const string ModName = "TransferWindowPlanner2";
     private const string Icon = "TransferWindowPlanner2/icon";
     private const string Marker = "TransferWindowPlanner2/marker";
-    private static readonly Vector2 MarkerSize = new(16, 16);
+    private static readonly Vector2 MarkerSize = new Vector2(16, 16);
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
     private const int WindowHeight = 600;
 
-    private readonly Texture2D _plotArrival = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
-    private readonly Texture2D _plotDeparture = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
-    private readonly Texture2D _plotTotal = new(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private readonly Texture2D _plotArrival = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private readonly Texture2D _plotDeparture = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private readonly Texture2D _plotTotal = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
 
     // Nullability: these are all initialized in `Start()`
     private GUIStyle _boxStyle = null!,
@@ -45,27 +45,27 @@ public class MainWindow : MonoBehaviour
     private PlotType _selectedPlot = PlotType.Total;
 
     private bool _showMainWindow;
-    private Rect _winPos = new(450, 100, WindowWidth, WindowHeight);
+    private Rect _winPos = new Rect(450, 100, WindowWidth, WindowHeight);
     private bool _showDepartureCbWindow;
-    private Rect _departureCbWinPos = new(200, 200, 200, 200);
+    private Rect _departureCbWinPos = new Rect(200, 200, 200, 200);
     private bool _showArrivalCbWindow;
-    private Rect _arrivalCbWinPos = new(300, 200, 200, 200);
+    private Rect _arrivalCbWinPos = new Rect(300, 200, 200, 200);
     private Rect _plotPosition;
 
     // Input fields
     private CelestialBody _departureCb = null!; // Nullability: Initialized in `Start()`
     private CelestialBody _arrivalCb = null!; // Nullability: Initialized in `Start()`
-    private DoubleInput _departureAltitude = new(100.0);
-    private DoubleInput _departureInclination = new(0.0);
-    private DoubleInput _arrivalAltitude = new(100.0);
+    private DoubleInput _departureAltitude = new DoubleInput(100.0);
+    private DoubleInput _departureInclination = new DoubleInput(0.0);
+    private DoubleInput _arrivalAltitude = new DoubleInput(100.0);
     private bool _circularize = true;
 
-    private DateInput _earliestDeparture = new(0.0);
-    private DateInput _latestDeparture = new(0.0);
-    private DateInput _earliestArrival = new(0.0);
-    private DateInput _latestArrival = new(0.0);
+    private DateInput _earliestDeparture = new DateInput(0.0);
+    private DateInput _latestDeparture = new DateInput(0.0);
+    private DateInput _earliestArrival = new DateInput(0.0);
+    private DateInput _latestArrival = new DateInput(0.0);
 
-    private DoubleInput _plotMargin = new(2.0);
+    private DoubleInput _plotMargin = new DoubleInput(2.0);
 
     private (int, int) _selectedTransfer;
     private Solver.TransferDetails _transferDetails;
@@ -458,7 +458,7 @@ public class MainWindow : MonoBehaviour
 
     private void GeneratePlots()
     {
-        if (_solver.WorkerState is not Solver.BackgroundWorkerState.Idle)
+        if (!(_solver.WorkerState is Solver.BackgroundWorkerState.Idle))
         {
             Debug.LogError($"Solver is already working!");
             return;
@@ -625,4 +625,5 @@ public class MainWindow : MonoBehaviour
             input.Valid ? _inputStyle : _invalidInputStyle,
             GUILayout.Width(100));
     }
+}
 }

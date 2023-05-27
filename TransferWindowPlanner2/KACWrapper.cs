@@ -6,8 +6,8 @@ using System.Linq;
 using System.Reflection;
 using System.Text;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
 #nullable disable
 ///////////////////////////////////////////////////////////////////////////////////////////
 // BELOW HERE SHOULD NOT BE EDITED - this links to the loaded KAC module without requiring a Hard Dependancy
@@ -646,4 +646,5 @@ public class KACWrapper
     }
 
     #endregion
+}
 }

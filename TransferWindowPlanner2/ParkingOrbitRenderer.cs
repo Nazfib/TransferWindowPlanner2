@@ -1,8 +1,8 @@
 using KSP.Localization;
 using KSP.UI.Screens.Mapview;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
 public class ParkingOrbitRenderer : OrbitTargetRenderer
 {
     public static ParkingOrbitRenderer Setup(
@@ -33,4 +33,5 @@ public class ParkingOrbitRenderer : OrbitTargetRenderer
             "#autoLOC_277943", // <<1>>Descending Node: <<2>>°<<3>>
             startColor, (-relativeInclination).ToString("0.0"), "</color>");
     }
+}
 }

@@ -1,14 +1,16 @@
 using System;
 using UnityEngine;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
 using static RenderUtils;
 
 public class MapAngleRenderer : MonoBehaviour
 {
-    public bool IsDrawing => _currentDrawingState is not DrawingState.Hidden;
-    public bool IsHiding => _currentDrawingState is DrawingState.Hiding or DrawingState.Hidden;
+    public bool IsDrawing => !(_currentDrawingState is DrawingState.Hidden);
+
+    public bool IsHiding => _currentDrawingState is DrawingState.Hiding
+                            || _currentDrawingState is DrawingState.Hidden;
 
     private DateTime _startDrawing;
 
@@ -190,7 +192,7 @@ public class MapAngleRenderer : MonoBehaviour
     internal void OnGUI()
     {
         if (BodyOrigin == null) { return; }
-        if (!MapView.MapIsEnabled || _currentDrawingState is not DrawingState.DrawingFullPicture) { return; }
+        if (!MapView.MapIsEnabled || !(_currentDrawingState is DrawingState.DrawingFullPicture)) { return; }
 
         var center = BodyOrigin.transform.position;
         var length = 5 * BodyOrigin.Radius;
@@ -215,4 +217,5 @@ public class MapAngleRenderer : MonoBehaviour
                 100, 30),
             "Escape direction", _styleLabelTarget);
     }
+}
 }

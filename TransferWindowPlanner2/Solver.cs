@@ -1,12 +1,11 @@
-using System;
 using System.ComponentModel;
 using MechJebLib.Core;
 using MechJebLib.Primitives;
 using static MechJebLib.Utils.Statics;
-using UnityEngine;
-using static TransferWindowPlanner2.MoreMaths;
 
-namespace TransferWindowPlanner2;
+namespace TransferWindowPlanner2
+{
+using static MoreMaths;
 
 public class Solver
 {
@@ -96,8 +95,8 @@ public class Solver
         }
 
         WorkerState = BackgroundWorkerState.Working;
-        _backgroundWorker.DoWork += (_, _) => { SolveAllProblems(); };
-        _backgroundWorker.RunWorkerCompleted += (_, _) => { WorkerState = BackgroundWorkerState.Done; };
+        _backgroundWorker.DoWork += (sender, args) => { SolveAllProblems(); };
+        _backgroundWorker.RunWorkerCompleted += (sender, args) => { WorkerState = BackgroundWorkerState.Done; };
         _backgroundWorker.RunWorkerAsync();
     }
 
@@ -307,4 +306,5 @@ Total Δv: {TotalΔv.ToSI()}m/s";
             TotalΔv = depΔv + arrΔv,
         };
     }
+}
 }

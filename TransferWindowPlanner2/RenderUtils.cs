@@ -1,7 +1,7 @@
 using UnityEngine;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
 public static class RenderUtils
 {
     public static LineRenderer InitLine(
@@ -51,4 +51,5 @@ public static class RenderUtils
         line.endWidth = 5f / 1000f * Vector3.Distance(camPos, startPos);
         line.enabled = true;
     }
+}
 }

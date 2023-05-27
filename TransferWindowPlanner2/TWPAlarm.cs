@@ -1,8 +1,8 @@
 using KSP.UI;
 using KSP.UI.Screens;
 
-namespace TransferWindowPlanner2;
-
+namespace TransferWindowPlanner2
+{
 public class TWPAlarm : AlarmTypeBase
 {
     [AppUI_InputDateTime(guiName = "Alarm margin", datetimeMode = AppUIMemberDateTime.DateTimeModes.timespan)]
@@ -42,4 +42,5 @@ public class TWPAlarm : AlarmTypeBase
         ut = ut + eventOffset - Margin;
         eventOffset = Margin;
     }
+}
 }
