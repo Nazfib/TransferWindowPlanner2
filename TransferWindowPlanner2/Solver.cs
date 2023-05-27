@@ -102,9 +102,8 @@ public class Solver
 
     private static (V3, V3) BodyStateVectorsAt(Orbit orbit, double time) =>
         Maths.StateVectorsFromKeplerian(
-            orbit.referenceBody.gravParameter, orbit.semiLatusRectum, orbit.eccentricity, orbit.inclination, orbit.LAN,
-            orbit.argumentOfPeriapsis, orbit.TrueAnomalyAtUT(time));
-
+            orbit.referenceBody.gravParameter, orbit.semiLatusRectum, orbit.eccentricity, Deg2Rad(orbit.inclination),
+            Deg2Rad(orbit.LAN), Deg2Rad(orbit.argumentOfPeriapsis), orbit.TrueAnomalyAtUT(time));
 
     internal (double, double) TimesFor((int i, int j) t) => TimesFor(t.i, t.j);
 
@@ -269,11 +268,11 @@ Total Δv: {TotalΔv.ToSI()}m/s";
         var arrDistance = (originPosAtArrival - arrPos).magnitude;
 
         var depAsySpherical = depVInf.cart2sph;
-        var depAsyDecl = depAsySpherical[1];
+        var depAsyDecl = 0.5 * PI - depAsySpherical[1];
         var depAsyRA = depAsySpherical[2];
 
         var arrAsySpherical = arrVInf.cart2sph;
-        var arrAsyDecl = arrAsySpherical[1];
+        var arrAsyDecl = 0.5 * PI - arrAsySpherical[1];
         var arrAsyRA = arrAsySpherical[2];
 
         var (depInc, depLAN) = LANAndIncForAsymptote(depMinInc, depAsyDecl, depAsyRA);
