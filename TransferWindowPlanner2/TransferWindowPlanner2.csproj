@@ -27,27 +27,25 @@
     </ItemDefinitionGroup>
 
     <ItemGroup>
-        <Reference Include="Assembly-CSharp"/>
-        <Reference Include="UnityEngine"/>
-        <Reference Include="UnityEngine.AnimationModule"/>
-        <Reference Include="UnityEngine.CoreModule"/>
-        <Reference Include="UnityEngine.IMGUIModule"/>
-        <Reference Include="UnityEngine.TextRenderingModule"/>
+        <Reference Include="Assembly-CSharp" />
+        <Reference Include="UnityEngine" />
+        <Reference Include="UnityEngine.AnimationModule" />
+        <Reference Include="UnityEngine.CoreModule" />
+        <Reference Include="UnityEngine.IMGUIModule" />
+        <Reference Include="UnityEngine.TextRenderingModule" />
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="MechJebLib\PVG\**"/>
-        <Compile Remove="MechJebLib\Maneuvers\**"/>
+        <Compile Remove="MechJebLib\PVG\**" />
+        <Compile Remove="MechJebLib\Maneuvers\**" />
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">
         <ItemGroup>
-            <SourceFiles Include="..\GameData\**\*.*"/>
-            <DestinationFiles Include="@(SourceFiles -> '$(KSPDir)\GameData\%(RecursiveDir)%(Filename)%(Extension)')"/>
+            <SourceFiles Include="..\GameData\**\*.*" />
+            <DestinationFiles Include="@(SourceFiles -> '$(KSPDir)\GameData\%(RecursiveDir)%(Filename)%(Extension)')" />
         </ItemGroup>
-        <Copy SourceFiles="@(SourceFiles)"
-              DestinationFiles="@(DestinationFiles)"
-              SkipUnchangedFiles="true"/>
-        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(KSPDir)\GameData\TransferWindowPlanner2"/>
+        <Copy SourceFiles="@(SourceFiles)" DestinationFiles="@(DestinationFiles)" SkipUnchangedFiles="true" />
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(KSPDir)\GameData\TransferWindowPlanner2" />
     </Target>
 </Project>

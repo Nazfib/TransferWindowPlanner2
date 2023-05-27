@@ -130,5 +130,32 @@ public static class GuiUtils
             GUI.enabled = _prev;
         }
     }
+
+    internal static readonly GUIStyle BoxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
+
+    internal static readonly GUIStyle BoxTitleStyle = new GUIStyle(HighLogic.Skin.label)
+    {
+        alignment = TextAnchor.MiddleCenter,
+        fontStyle = FontStyle.Bold,
+    };
+
+    internal static readonly GUIStyle PlotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
+
+    internal static readonly GUIStyle PlotTooltipStyle = new GUIStyle(HighLogic.Skin.box)
+    {
+        alignment = TextAnchor.MiddleLeft,
+        fontStyle = FontStyle.Normal,
+    };
+
+    internal static readonly GUIStyle InputStyle = new GUIStyle(HighLogic.Skin.textField)
+        { alignment = TextAnchor.MiddleRight };
+
+    internal static readonly GUIStyle InvalidInputStyle = new GUIStyle(InputStyle)
+        { normal = { textColor = Color.red } };
+
+    internal static readonly GUIStyle ButtonStyle = new GUIStyle(HighLogic.Skin.button);
+
+    internal static readonly GUIStyle InvalidButtonStyle = new GUIStyle(ButtonStyle)
+        { normal = { textColor = Color.red } };
 }
 }
