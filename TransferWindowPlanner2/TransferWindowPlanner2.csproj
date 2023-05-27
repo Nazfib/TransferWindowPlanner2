@@ -15,7 +15,7 @@
 
     <PropertyGroup>
         <Version>1.0.0</Version>
-        <KSPDir>..\..\_Versions\1.12.3</KSPDir>
+        <KSPDir>..\..\_Versions\1.12.5</KSPDir>
         <AssemblySearchPaths>$(KSPDir)\KSP_Data\Managed;$(AssemblySearchPaths)</AssemblySearchPaths>
     </PropertyGroup>
 
@@ -36,9 +36,8 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="MechJebLib\**"/>
-        <Compile Include="MechJebLib\Maths\Gooding.cs"/>
-        <Compile Include="MechJebLib\Utils\Statics.cs"/>
+        <Compile Remove="MechJebLib\PVG\**"/>
+        <Compile Remove="MechJebLib\Maneuvers\**"/>
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">
