@@ -103,7 +103,8 @@ public class Solver
     private static (V3, V3) BodyStateVectorsAt(Orbit orbit, double time) =>
         Maths.StateVectorsFromKeplerian(
             orbit.referenceBody.gravParameter, orbit.semiLatusRectum, orbit.eccentricity, orbit.inclination, orbit.LAN,
-            orbit.argumentOfPeriapsis, time);
+            orbit.argumentOfPeriapsis, orbit.TrueAnomalyAtUT(time));
+
 
     internal (double, double) TimesFor((int i, int j) t) => TimesFor(t.i, t.j);
 
