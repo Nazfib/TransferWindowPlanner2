@@ -184,13 +184,13 @@ public class MainWindow : MonoBehaviour
         ValidOriginOrDestination(ArrivalBody) &&
         !DepartureBody.Equals(ArrivalBody) &&
         _departureAltitude.Valid &&
-        (DepartureBody.IsCelestial ||
+        (!DepartureBody.IsCelestial ||
          _departureAltitude.Value + DepartureBody.Celestial!.Radius < DepartureBody.Celestial!.sphereOfInfluence) &&
         _departureInclination.Valid &&
         _earliestDeparture.Valid &&
         _latestDeparture.Valid &&
         _arrivalAltitude.Valid &&
-        (ArrivalBody.IsCelestial ||
+        (!ArrivalBody.IsCelestial ||
          _arrivalAltitude.Value + ArrivalBody.Celestial!.Radius < ArrivalBody.Celestial!.sphereOfInfluence) &&
         _earliestArrival.Valid &&
         _latestArrival.Valid &&
@@ -443,7 +443,8 @@ public class MainWindow : MonoBehaviour
             DepartureBody, ArrivalBody,
             _earliestDeparture.Ut, _latestDeparture.Ut,
             _earliestArrival.Ut, _latestArrival.Ut,
-            _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3, _circularize);
+            _departureAltitude.Value * 1e3, Deg2Rad(_departureInclination.Value),
+            _arrivalAltitude.Value * 1e3, _circularize);
     }
 
     private void OnSolverDone()
@@ -461,11 +462,7 @@ public class MainWindow : MonoBehaviour
     {
         var (tDep, tArr) = _solver.TimesFor(point);
         _selectedTransfer = point;
-        // FIXME: uses the bodies as set in the UI, but the porkchop might have been generated with different bodies.
-        _transferDetails = Solver.CalculateDetails(
-            DepartureBody, ArrivalBody, _departureAltitude.Value * 1e3,
-            _arrivalAltitude.Value * 1e3,
-            Deg2Rad(_departureInclination.Value), _circularize, tDep, tArr);
+        _transferDetails = _solver.CalculateDetails(tDep, tArr);
 
         if (_showEjectAngle) { EnableEjectionRenderer(); }
         if (_showParkingOrbit) { EnableParkingOrbitRenderer(); }

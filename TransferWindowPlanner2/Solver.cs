@@ -10,6 +10,9 @@ using static MoreMaths;
 
 public class Solver
 {
+    private Endpoint _origin;
+    private Endpoint _destination;
+
     private readonly int _nDepartures;
     private readonly int _nArrivals;
 
@@ -30,6 +33,7 @@ public class Solver
     private double _earliestArrival;
     private double _latestArrival;
     private double _departurePeR;
+    private double _departureMinInc;
     private double _arrivalPeR;
     private bool _circularize;
     private double _soiDeparture;
@@ -67,40 +71,46 @@ public class Solver
     }
 
     public void GeneratePorkchop(
-        Endpoint cbOrigin, Endpoint cbDestination,
+        Endpoint origin, Endpoint destination,
         double earliestDeparture, double latestDeparture,
         double earliestArrival, double latestArrival,
-        double departureAltitude, double arrivalAltitude, bool circularize)
+        double departureAltitude, double departureMinInclination,
+        double arrivalAltitude, bool circularize)
     {
+        _origin = origin;
+        _destination = destination;
+
         _earliestDeparture = earliestDeparture;
         _latestDeparture = latestDeparture;
         _earliestArrival = earliestArrival;
         _latestArrival = latestArrival;
 
-        if (cbOrigin.IsCelestial)
+        if (origin.IsCelestial)
         {
-            _departurePeR = cbOrigin.Celestial!.Radius + departureAltitude;
-            _soiDeparture = cbOrigin.Celestial!.sphereOfInfluence;
-            _gravParameterDeparture = cbOrigin.Celestial!.gravParameter;
+            _departurePeR = origin.Celestial!.Radius + departureAltitude;
+            _departureMinInc = departureMinInclination;
+            _soiDeparture = origin.Celestial!.sphereOfInfluence;
+            _gravParameterDeparture = origin.Celestial!.gravParameter;
         }
         else { _departurePeR = _soiDeparture = _gravParameterDeparture = 0.0; }
-        if (cbDestination.IsCelestial)
+        if (destination.IsCelestial)
         {
-            _arrivalPeR = cbDestination.Celestial!.Radius + arrivalAltitude;
-            _soiArrival = cbDestination.Celestial!.sphereOfInfluence;
-            _gravParameterArrival = cbDestination.Celestial!.gravParameter;
+            _arrivalPeR = destination.Celestial!.Radius + arrivalAltitude;
+            _circularize = circularize;
+            _soiArrival = destination.Celestial!.sphereOfInfluence;
+            _gravParameterArrival = destination.Celestial!.gravParameter;
         }
         else { _arrivalPeR = _soiArrival = _gravParameterArrival = 0.0; }
-        _circularize = circularize;
-        _gravParameterTransfer = cbOrigin.Orbit.referenceBody.gravParameter;
+
+        _gravParameterTransfer = origin.Orbit.referenceBody.gravParameter;
 
         for (var i = 0; i < _nDepartures; ++i)
         {
-            (_depPos[i], _depVel[i]) = BodyStateVectorsAt(cbOrigin.Orbit, DepartureTime(i));
+            (_depPos[i], _depVel[i]) = BodyStateVectorsAt(origin.Orbit, DepartureTime(i));
         }
         for (var j = 0; j < _nArrivals; ++j)
         {
-            (_arrPos[j], _arrVel[j]) = BodyStateVectorsAt(cbDestination.Orbit, ArrivalTime(j));
+            (_arrPos[j], _arrVel[j]) = BodyStateVectorsAt(destination.Orbit, ArrivalTime(j));
         }
 
         WorkerState = BackgroundWorkerState.Working;
@@ -251,21 +261,15 @@ Arrival: {KSPUtil.PrintDate(ArrivalTime, IsShort)}
 Total Δv: {TotalΔv.ToSI()}m/s";
     }
 
-    public static TransferDetails CalculateDetails(
-        Endpoint origin, Endpoint destination,
-        double depPeA, double arrPeA,
-        double depMinInc, bool circularize,
-        double tDep, double tArr)
+    public TransferDetails CalculateDetails(double tDep, double tArr)
     {
         if (tArr <= tDep) { return new TransferDetails { IsValid = false }; }
 
-        var (depPos, depCbVel) = BodyStateVectorsAt(origin.Orbit, tDep);
-        var (arrPos, arrCbVel) = BodyStateVectorsAt(destination.Orbit, tArr);
+        var (depPos, depCbVel) = BodyStateVectorsAt(_origin.Orbit, tDep);
+        var (arrPos, arrCbVel) = BodyStateVectorsAt(_destination.Orbit, tArr);
         var timeOfFlight = tArr - tDep;
         var (depVel, arrVel) = Gooding.Solve(
-            origin.Orbit.referenceBody.gravParameter, depPos, depCbVel, arrPos, timeOfFlight, 0);
-        var depPeR = origin.IsCelestial ? depPeA + origin.Celestial!.Radius : 0.0;
-        var arrPeR = destination.IsCelestial ? arrPeA + destination.Celestial!.Radius : 0.0;
+            _origin.Orbit.referenceBody.gravParameter, depPos, depCbVel, arrPos, timeOfFlight, 0);
 
         var depVInf = depVel - depCbVel;
         var arrVInf = arrVel - arrCbVel;
@@ -273,17 +277,18 @@ Total Δv: {TotalΔv.ToSI()}m/s";
         var depC3 = depVInf.sqrMagnitude;
         var arrC3 = arrVInf.sqrMagnitude;
 
-        var depΔv = origin.IsCelestial
-            ? ΔvFromC3(origin.Celestial!.gravParameter, origin.Celestial!.sphereOfInfluence, depC3, depPeR, true)
-            : depVInf.magnitude;
-        var arrΔv = destination.IsCelestial
+        var depΔv = _origin.IsCelestial
             ? ΔvFromC3(
-                destination.Celestial!.gravParameter, destination.Celestial!.sphereOfInfluence, arrC3, arrPeR,
-                circularize)
-            : arrVInf.magnitude;
+                _origin.Celestial!.gravParameter, _origin.Celestial!.sphereOfInfluence, depC3, _departurePeR, true)
+            : Math.Sqrt(depC3);
+        var arrΔv = _destination.IsCelestial
+            ? ΔvFromC3(
+                _destination.Celestial!.gravParameter, _destination.Celestial!.sphereOfInfluence, arrC3, _arrivalPeR,
+                _circularize)
+            : Math.Sqrt(arrC3);
         if (double.IsNaN(depΔv) || double.IsNaN(arrΔv)) { return new TransferDetails { IsValid = false }; }
 
-        var (originPosAtArrival, _) = BodyStateVectorsAt(origin.Orbit, tArr);
+        var (originPosAtArrival, _) = BodyStateVectorsAt(_origin.Orbit, tArr);
         var arrDistance = (originPosAtArrival - arrPos).magnitude;
 
         var depAsySpherical = depVInf.cart2sph;
@@ -294,19 +299,19 @@ Total Δv: {TotalΔv.ToSI()}m/s";
         var arrAsyDecl = 0.5 * PI - arrAsySpherical[1];
         var arrAsyRA = arrAsySpherical[2];
 
-        var (depInc, depLAN) = LANAndIncForAsymptote(depMinInc, depAsyDecl, depAsyRA);
+        var (depInc, depLAN) = LANAndIncForAsymptote(_departureMinInc, depAsyDecl, depAsyRA);
 
-        var depPeDir = origin.IsCelestial
-            ? PeriapsisDirection(origin.Celestial!.gravParameter, depVInf, depPeR, depInc, depLAN)
+        var depPeDir = _origin.IsCelestial
+            ? PeriapsisDirection(_origin.Celestial!.gravParameter, depVInf, _departurePeR, depInc, depLAN)
             : V3.zero;
 
         return new TransferDetails
         {
             IsValid = true,
-            Origin = origin,
-            Destination = destination,
+            Origin = _origin,
+            Destination = _destination,
             DepartureTime = tDep,
-            DeparturePeriapsis = depPeA,
+            DeparturePeriapsis = _origin.IsCelestial ? _departurePeR - _origin.Celestial!.Radius : 0.0,
             DepartureInclination = depInc,
             DepartureLAN = depLAN,
             DepartureVInf = depVInf,
@@ -316,7 +321,7 @@ Total Δv: {TotalΔv.ToSI()}m/s";
             DepartureC3 = depC3,
             DepartureΔv = depΔv,
             ArrivalTime = tArr,
-            ArrivalPeriapsis = arrPeA,
+            ArrivalPeriapsis = _destination.IsCelestial ? _arrivalPeR - _destination.Celestial!.Radius : 0.0,
             ArrivalDistance = arrDistance,
             ArrivalAsyRA = arrAsyRA,
             ArrivalAsyDecl = arrAsyDecl,
