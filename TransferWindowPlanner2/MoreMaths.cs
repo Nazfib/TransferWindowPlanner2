@@ -18,6 +18,12 @@ public static class MoreMaths
         return Math.PI * Math.Sqrt(a * a * a / mu);
     }
 
+    private static double PeriapsisVelocityElliptical(double mu, double periapsis, double apoapsis)
+    {
+        var sma = SmaFromApsides(periapsis, apoapsis);
+        return VmagFromVisViva(mu, sma, periapsis);
+    }
+
     private static double PeriapsisVelocitySquared(double mu, double sphereOfInfluence, double c3, double periapsis) =>
         2 * mu / periapsis + c3 - 2 * mu / sphereOfInfluence;
 
@@ -25,9 +31,11 @@ public static class MoreMaths
     {
         var vStart = circularize
             ? CircularVelocity(mu, periapsis)
-            : EscapeVelocity(mu, periapsis);
+            : PeriapsisVelocityElliptical(mu, periapsis, sphereOfInfluence);
 
-        return Math.Sqrt(PeriapsisVelocitySquared(mu, sphereOfInfluence, c3, periapsis)) - vStart;
+        // ReSharper disable once InconsistentNaming
+        var Δv = Math.Sqrt(PeriapsisVelocitySquared(mu, sphereOfInfluence, c3, periapsis)) - vStart;
+        return Δv > 0 ? Δv : double.NaN;
     }
 
     public static V3 PeriapsisDirection(

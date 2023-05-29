@@ -147,8 +147,7 @@ public class Solver
             var depCbVel = _depVel[i];
             var arrCbVel = _arrVel[j];
 
-            var tof = tArr - tDep;
-            var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, depCbVel, arrPos, tof, 0);
+            var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, depCbVel, arrPos, timeOfFlight, 0);
 
             var depC3 = (depVel - depCbVel).sqrMagnitude;
             var depΔv = DepΔv[i, j] = ΔvFromC3(_gravParameterDeparture, _soiDeparture, depC3, _departurePeR, true);
@@ -245,7 +244,7 @@ Total Δv: {TotalΔv.ToSI()}m/s";
         double depMinInc, bool circularize,
         double tDep, double tArr)
     {
-        if (tArr < tDep) { return new TransferDetails { IsValid = false }; }
+        if (tArr <= tDep) { return new TransferDetails { IsValid = false }; }
 
         var (depPos, depCbVel) = BodyStateVectorsAt(origin.orbit, tDep);
         var (arrPos, arrCbVel) = BodyStateVectorsAt(destination.orbit, tArr);
@@ -263,6 +262,7 @@ Total Δv: {TotalΔv.ToSI()}m/s";
 
         var depΔv = ΔvFromC3(origin.gravParameter, origin.sphereOfInfluence, depC3, depPeR, true);
         var arrΔv = ΔvFromC3(destination.gravParameter, destination.sphereOfInfluence, arrC3, arrPeR, circularize);
+        if (double.IsNaN(depΔv) || double.IsNaN(arrΔv)) { return new TransferDetails { IsValid = false }; }
 
         var (originPosAtArrival, _) = BodyStateVectorsAt(origin.orbit, tArr);
         var arrDistance = (originPosAtArrival - arrPos).magnitude;
