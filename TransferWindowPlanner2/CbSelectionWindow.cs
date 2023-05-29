@@ -9,7 +9,7 @@ public class CbSelectionWindow : MonoBehaviour
     internal bool IsVisible;
     private Rect _winPos = new Rect(200, 200, 200, 200);
     public CelestialBody SelectedBody { get; private set; } = null!;
-    public CelestialBody? CompareBody { get; internal set; } = null;
+    public CelestialBody? CentralBody { get; internal set; } = null;
     private string _title = "CB Selection window";
 
     public static CbSelectionWindow Setup(MainWindow mainWindow, string title, CelestialBody initialSelection)
@@ -36,13 +36,11 @@ public class CbSelectionWindow : MonoBehaviour
 
         foreach (var cb in FlightGlobals.Bodies)
         {
-            if (cb.isStar) { continue; }
+            if (CentralBody != null && cb == CentralBody) { continue; }
 
-            if (GUILayout.Button(
-                    cb.displayName.LocalizeRemoveGender(),
-                    CompareBody == null || MainWindow.ValidCbCombination(cb, CompareBody)
-                        ? ButtonStyle
-                        : InvalidButtonStyle)) { return cb; }
+            if (CentralBody != null && cb.referenceBody != CentralBody) { continue; }
+
+            if (GUILayout.Button(cb.displayName.LocalizeRemoveGender(), ButtonStyle)) { return cb; }
         }
 
         return null;

@@ -41,8 +41,10 @@ public class MainWindow : MonoBehaviour
     // Input fields
     private CbSelectionWindow _departureCbWindow = null!;
     private CbSelectionWindow _arrivalCbWindow = null!;
+    private CbSelectionWindow _centralBodyWindow = null!;
     private CelestialBody DepartureCb => _departureCbWindow.SelectedBody;
     private CelestialBody ArrivalCb => _arrivalCbWindow.SelectedBody;
+    private CelestialBody CentralBody => _centralBodyWindow.SelectedBody;
 
     private DoubleInput _departureAltitude = new DoubleInput(100.0);
     private DoubleInput _departureInclination = new DoubleInput(0.0);
@@ -81,15 +83,18 @@ public class MainWindow : MonoBehaviour
         KACWrapper.InitKACWrapper();
 
         var departureCb = FlightGlobals.GetHomeBody();
-        var arrivalCb = FlightGlobals.Bodies.Find(cb => ValidCbCombination(departureCb, cb));
+        var centralCb = FlightGlobals.GetHomeBody().referenceBody;
+        var arrivalCb = FlightGlobals.Bodies.Find(
+            cb => cb != centralCb && cb.referenceBody == centralCb && cb != departureCb);
         if (arrivalCb == null)
         {
             // No valid destinations from the home body: let the user worry about it.
             arrivalCb = departureCb;
         }
+
         _departureCbWindow = CbSelectionWindow.Setup(this, "Origin body", departureCb);
         _arrivalCbWindow = CbSelectionWindow.Setup(this, "Destination body", arrivalCb);
-
+        _centralBodyWindow = CbSelectionWindow.Setup(this, "Central body", centralCb);
         ResetTimes();
     }
 
@@ -98,6 +103,7 @@ public class MainWindow : MonoBehaviour
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
         Destroy(_departureCbWindow);
         Destroy(_arrivalCbWindow);
+        Destroy(_centralBodyWindow);
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
         if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
     }
@@ -163,18 +169,20 @@ public class MainWindow : MonoBehaviour
         GUI.DragWindow();
     }
 
-    internal static bool ValidCbCombination(CelestialBody cb1, CelestialBody cb2) =>
-        cb1 != cb2 &&
-        !cb1.isStar && !cb2.isStar &&
-        cb1.referenceBody == cb2.referenceBody;
+    private bool ValidOriginOrDestination(CelestialBody cb) =>
+        cb.referenceBody == CentralBody && cb != CentralBody;
 
     private bool ValidInputs() =>
-        ValidCbCombination(DepartureCb, ArrivalCb) &&
+        ValidOriginOrDestination(DepartureCb) &&
+        ValidOriginOrDestination(ArrivalCb) &&
+        DepartureCb != ArrivalCb &&
         _departureAltitude.Valid &&
+        _departureAltitude.Value + DepartureCb.Radius < DepartureCb.sphereOfInfluence &&
         _departureInclination.Valid &&
         _earliestDeparture.Valid &&
         _latestDeparture.Valid &&
         _arrivalAltitude.Valid &&
+        _arrivalAltitude.Value + ArrivalCb.Radius < ArrivalCb.sphereOfInfluence &&
         _earliestArrival.Valid &&
         _latestArrival.Valid &&
         _plotMargin.Valid;
@@ -184,20 +192,31 @@ public class MainWindow : MonoBehaviour
         using var scope = new GUILayout.VerticalScope(
             GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
 
+        using (new GUILayout.HorizontalScope(BoxStyle))
+        {
+            GUILayout.Label("Central body", BoxTitleStyle);
+            GUILayout.FlexibleSpace();
+            _centralBodyWindow.IsVisible = GUILayout.Toggle(
+                _centralBodyWindow.IsVisible,
+                CentralBody.displayName.LocalizeRemoveGender(),
+                ButtonStyle,
+                GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f));
+        }
+
         using (new GUILayout.VerticalScope(BoxStyle))
         {
             using (new GUILayout.HorizontalScope())
             {
                 GUILayout.Label("Origin", BoxTitleStyle);
                 GUILayout.FlexibleSpace();
-                _departureCbWindow.CompareBody = _arrivalCbWindow.SelectedBody;
+                _departureCbWindow.CentralBody = CentralBody;
                 _departureCbWindow.IsVisible = GUILayout.Toggle(
                     _departureCbWindow.IsVisible,
                     DepartureCb.displayName.LocalizeRemoveGender(),
-                    ValidCbCombination(DepartureCb, ArrivalCb)
+                    ValidOriginOrDestination(DepartureCb) && DepartureCb != ArrivalCb
                         ? ButtonStyle
                         : InvalidButtonStyle,
-                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2));
+                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f));
             }
             LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
             LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
@@ -211,11 +230,11 @@ public class MainWindow : MonoBehaviour
             {
                 GUILayout.Label("Destination", BoxTitleStyle);
                 GUILayout.FlexibleSpace();
-                _arrivalCbWindow.CompareBody = _departureCbWindow.SelectedBody;
+                _arrivalCbWindow.CentralBody = CentralBody;
                 _arrivalCbWindow.IsVisible = GUILayout.Toggle(
                     _arrivalCbWindow.IsVisible,
                     ArrivalCb.displayName.LocalizeRemoveGender(),
-                    ValidCbCombination(DepartureCb, ArrivalCb)
+                    ValidOriginOrDestination(ArrivalCb) && DepartureCb != ArrivalCb
                         ? ButtonStyle
                         : InvalidButtonStyle,
                     GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2));
@@ -312,7 +331,7 @@ public class MainWindow : MonoBehaviour
             LabeledInfo("LAN", $"{Rad2Deg(_transferDetails.DepartureLAN):F2} °");
             LabeledInfo("Asymptote right ascension", $"{Rad2Deg(_transferDetails.DepartureAsyRA):F2} °");
             LabeledInfo("Asymptote declination", $"{Rad2Deg(_transferDetails.DepartureAsyDecl):F2} °");
-            LabeledInfo("C3", $"{_transferDetails.DepartureC3 / 1e6:F2}km²/s²");
+            LabeledInfo("C3", $"{_transferDetails.DepartureC3 / 1e6:F2} km²/s²");
             LabeledInfo("Δv", $"{_transferDetails.DepartureΔv.ToSI()}m/s");
         }
     }
@@ -338,7 +357,7 @@ public class MainWindow : MonoBehaviour
             GUILayout.Label(""); // Empty row
             LabeledInfo("Asymptote right ascension", $"{Rad2Deg(_transferDetails.ArrivalAsyRA):F2} °");
             LabeledInfo("Asymptote declination", $"{Rad2Deg(_transferDetails.ArrivalAsyDecl):F2} °");
-            LabeledInfo("C3", $"{_transferDetails.ArrivalC3 / 1e6:F2}km²/s²");
+            LabeledInfo("C3", $"{_transferDetails.ArrivalC3 / 1e6:F2} km²/s²");
             LabeledInfo("Δv", $"{_transferDetails.ArrivalΔv.ToSI()}m/s");
         }
     }
