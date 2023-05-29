@@ -39,11 +39,11 @@ public class MainWindow : MonoBehaviour
     private Rect _plotPosition;
 
     // Input fields
-    private CbSelectionWindow _departureCbWindow = null!;
-    private CbSelectionWindow _arrivalCbWindow = null!;
-    private CbSelectionWindow _centralBodyWindow = null!;
-    private Endpoint DepartureBody => _departureCbWindow.SelectedBody;
-    private Endpoint ArrivalBody => _arrivalCbWindow.SelectedBody;
+    private BodySelectionWindow _departureBodyWindow = null!;
+    private BodySelectionWindow _arrivalBodyWindow = null!;
+    private BodySelectionWindow _centralBodyWindow = null!;
+    private Endpoint DepartureBody => _departureBodyWindow.SelectedBody;
+    private Endpoint ArrivalBody => _arrivalBodyWindow.SelectedBody;
 
     private CelestialBody CentralBody =>
         _centralBodyWindow.SelectedBody.Celestial == null
@@ -96,17 +96,17 @@ public class MainWindow : MonoBehaviour
             arrivalCb = departureCb;
         }
 
-        _departureCbWindow = CbSelectionWindow.Setup(this, "Origin body", new Endpoint(departureCb));
-        _arrivalCbWindow = CbSelectionWindow.Setup(this, "Destination body", new Endpoint(arrivalCb));
-        _centralBodyWindow = CbSelectionWindow.Setup(this, "Central body", new Endpoint(centralCb));
+        _departureBodyWindow = BodySelectionWindow.Setup(this, "Origin body", new Endpoint(departureCb));
+        _arrivalBodyWindow = BodySelectionWindow.Setup(this, "Destination body", new Endpoint(arrivalCb));
+        _centralBodyWindow = BodySelectionWindow.Setup(this, "Central body", new Endpoint(centralCb));
         ResetTimes();
     }
 
     public void OnDestroy()
     {
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
-        Destroy(_departureCbWindow);
-        Destroy(_arrivalCbWindow);
+        Destroy(_departureBodyWindow);
+        Destroy(_arrivalBodyWindow);
         Destroy(_centralBodyWindow);
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
         if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
@@ -127,6 +127,9 @@ public class MainWindow : MonoBehaviour
     private void HideWindow()
     {
         _showMainWindow = false;
+        _departureBodyWindow.IsVisible = false;
+        _arrivalBodyWindow.IsVisible = false;
+        _centralBodyWindow.IsVisible = false;
     }
 
     private void OnSceneChange(GameScenes s)
@@ -215,9 +218,9 @@ public class MainWindow : MonoBehaviour
             {
                 GUILayout.Label("Origin", BoxTitleStyle);
                 GUILayout.FlexibleSpace();
-                _departureCbWindow.CentralBody = CentralBody;
-                _departureCbWindow.IsVisible = GUILayout.Toggle(
-                    _departureCbWindow.IsVisible,
+                _departureBodyWindow.CentralBody = CentralBody;
+                _departureBodyWindow.IsVisible = GUILayout.Toggle(
+                    _departureBodyWindow.IsVisible,
                     DepartureBody.Name,
                     ValidOriginOrDestination(DepartureBody) && !DepartureBody.Equals(ArrivalBody)
                         ? ButtonStyle
@@ -239,9 +242,9 @@ public class MainWindow : MonoBehaviour
             {
                 GUILayout.Label("Destination", BoxTitleStyle);
                 GUILayout.FlexibleSpace();
-                _arrivalCbWindow.CentralBody = CentralBody;
-                _arrivalCbWindow.IsVisible = GUILayout.Toggle(
-                    _arrivalCbWindow.IsVisible,
+                _arrivalBodyWindow.CentralBody = CentralBody;
+                _arrivalBodyWindow.IsVisible = GUILayout.Toggle(
+                    _arrivalBodyWindow.IsVisible,
                     ArrivalBody.Name,
                     ValidOriginOrDestination(ArrivalBody) && !DepartureBody.Equals(ArrivalBody)
                         ? ButtonStyle
