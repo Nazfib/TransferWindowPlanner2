@@ -38,69 +38,17 @@ public static class MoreMaths
         return Δv > 0 ? Δv : double.NaN;
     }
 
-    public static V3 PeriapsisDirection(
-        double mu, double sphereOfInfluence, V3 vInf, double periapsis, double inclination, double lan)
+    public static V3 PeriapsisDirection(double mu, V3 vInf, double periapsis, double inclination, double lan)
     {
-        var depC3 = vInf.sqrMagnitude;
-        var depPeVel2 = PeriapsisVelocitySquared(mu, sphereOfInfluence, depC3, periapsis);
-        var depEcc = periapsis * depPeVel2 / mu - 1;
-        var depNormal = new V3(
-            Math.Sin(lan) * Math.Sin(inclination),
-            -Math.Cos(lan) * Math.Sin(inclination),
-            Math.Cos(inclination));
-        var depPeDir = PeriapsisDirectionHelper(vInf, -1 / depEcc, depNormal);
-        return depPeDir;
-    }
+        // TODO: make this more accurate, by adjusting for SoI radius
+        var c3 = vInf.sqrMagnitude;
+        var sma = -mu / c3;
+        var ecc = 1.0 - periapsis / sma;
+        var nuInf = SafeAcos(-1.0 / ecc);
 
-    private static V3 PeriapsisDirectionHelper(V3 vInf, double cosTrueAnomaly, V3 normal)
-    {
-        // Given:
-        // - the velocity after escape (asymptote of the hyperbola)
-        // - the cosine of the angle between the asymptote and the periapsis
-        // - a vector, normal to the plane.
-
-        vInf = vInf.normalized;
-
-        // We have three equations of three unknowns (v.x, v.y, v.z):
-        //   dot(v, vInf) = cosTrueAnomaly
-        //   norm(v) = 1  [Unit vector]
-        //   dot(v, normal) = 0  [Perpendicular to normal]
-        //
-        // Solution is defined iff:
-        //   normal.z != 0
-        //   vInf.y != 0 or (vInf.z != 0 and normal.y != 0) [because we are solving for v.x first]
-        //   vInf is not parallel to normal
-
-        // Intermediate terms
-        var f = vInf.y - vInf.z * normal.y / normal.z;
-        var g = (vInf.z * normal.x - vInf.x * normal.z) / (vInf.y * normal.z - vInf.z * normal.y);
-        var h = (normal.x + g * normal.y) / normal.z;
-        var m = normal.y * normal.y + normal.z * normal.z;
-        var n = f * normal.z * normal.z / cosTrueAnomaly;
-
-        // Quadratic coefficients
-        var a = 1 + g * g + h * h;
-        var b = 2 * (g * m + normal.x * normal.y) / n;
-        var c = m * cosTrueAnomaly / (f * n) - 1;
-
-        // Quadratic formula without loss of significance (Numerical Recipes eq. 5.6.4)
-        double q;
-        if (b < 0) { q = -0.5 * (b - Math.Sqrt(b * b - 4 * a * c)); }
-        else { q = -0.5 * (b + Math.Sqrt(b * b - 4 * a * c)); }
-
-        V3 v;
-        v.x = q / a;
-        v.y = g * v.x + cosTrueAnomaly / f;
-        v.z = -(v.x * normal.x + v.y * normal.y) / normal.z;
-
-        if (V3.Dot(V3.Cross(v, vInf), normal) < 0)
-        {
-            // Wrong orbital direction
-            v.x = c / q;
-            v.y = g * v.x + cosTrueAnomaly / f;
-            v.z = -(v.x * normal.x + v.y * normal.y) / normal.z;
-        }
-        return v;
+        var normal = new V3(1.0, inclination, lan - .5 * PI).sph2cart;
+        var peDir = Q3.AngleAxis(-nuInf, normal) * vInf;
+        return peDir.normalized;
     }
 
     public static (double inc, double lan) LANAndIncForAsymptote(

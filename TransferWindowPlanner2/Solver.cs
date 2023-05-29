@@ -277,8 +277,7 @@ Total Δv: {TotalΔv.ToSI()}m/s";
 
         var (depInc, depLAN) = LANAndIncForAsymptote(depMinInc, depAsyDecl, depAsyRA);
 
-        var depPeDir = PeriapsisDirection(
-            origin.gravParameter, origin.sphereOfInfluence, depVInf, depPeR, depMinInc, depLAN);
+        var depPeDir = PeriapsisDirection(origin.gravParameter, depVInf, depPeR, depInc, depLAN);
 
         return new TransferDetails
         {
