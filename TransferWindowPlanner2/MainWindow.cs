@@ -42,9 +42,13 @@ public class MainWindow : MonoBehaviour
     private CbSelectionWindow _departureCbWindow = null!;
     private CbSelectionWindow _arrivalCbWindow = null!;
     private CbSelectionWindow _centralBodyWindow = null!;
-    private CelestialBody DepartureCb => _departureCbWindow.SelectedBody;
-    private CelestialBody ArrivalCb => _arrivalCbWindow.SelectedBody;
-    private CelestialBody CentralBody => _centralBodyWindow.SelectedBody;
+    private Endpoint DepartureBody => _departureCbWindow.SelectedBody;
+    private Endpoint ArrivalBody => _arrivalCbWindow.SelectedBody;
+
+    private CelestialBody CentralBody =>
+        _centralBodyWindow.SelectedBody.Celestial == null
+            ? throw new InvalidOperationException()
+            : _centralBodyWindow.SelectedBody.Celestial;
 
     private DoubleInput _departureAltitude = new DoubleInput(100.0);
     private DoubleInput _departureInclination = new DoubleInput(0.0);
@@ -92,9 +96,9 @@ public class MainWindow : MonoBehaviour
             arrivalCb = departureCb;
         }
 
-        _departureCbWindow = CbSelectionWindow.Setup(this, "Origin body", departureCb);
-        _arrivalCbWindow = CbSelectionWindow.Setup(this, "Destination body", arrivalCb);
-        _centralBodyWindow = CbSelectionWindow.Setup(this, "Central body", centralCb);
+        _departureCbWindow = CbSelectionWindow.Setup(this, "Origin body", new Endpoint(departureCb));
+        _arrivalCbWindow = CbSelectionWindow.Setup(this, "Destination body", new Endpoint(arrivalCb));
+        _centralBodyWindow = CbSelectionWindow.Setup(this, "Central body", new Endpoint(centralCb));
         ResetTimes();
     }
 
@@ -169,20 +173,22 @@ public class MainWindow : MonoBehaviour
         GUI.DragWindow();
     }
 
-    private bool ValidOriginOrDestination(CelestialBody cb) =>
-        cb.referenceBody == CentralBody && cb != CentralBody;
+    private bool ValidOriginOrDestination(Endpoint end) =>
+        end.Orbit.referenceBody == CentralBody && end.Celestial != CentralBody;
 
     private bool ValidInputs() =>
-        ValidOriginOrDestination(DepartureCb) &&
-        ValidOriginOrDestination(ArrivalCb) &&
-        DepartureCb != ArrivalCb &&
+        ValidOriginOrDestination(DepartureBody) &&
+        ValidOriginOrDestination(ArrivalBody) &&
+        !DepartureBody.Equals(ArrivalBody) &&
         _departureAltitude.Valid &&
-        _departureAltitude.Value + DepartureCb.Radius < DepartureCb.sphereOfInfluence &&
+        (DepartureBody.IsCelestial ||
+         _departureAltitude.Value + DepartureBody.Celestial!.Radius < DepartureBody.Celestial!.sphereOfInfluence) &&
         _departureInclination.Valid &&
         _earliestDeparture.Valid &&
         _latestDeparture.Valid &&
         _arrivalAltitude.Valid &&
-        _arrivalAltitude.Value + ArrivalCb.Radius < ArrivalCb.sphereOfInfluence &&
+        (ArrivalBody.IsCelestial ||
+         _arrivalAltitude.Value + ArrivalBody.Celestial!.Radius < ArrivalBody.Celestial!.sphereOfInfluence) &&
         _earliestArrival.Valid &&
         _latestArrival.Valid &&
         _plotMargin.Valid;
@@ -212,14 +218,17 @@ public class MainWindow : MonoBehaviour
                 _departureCbWindow.CentralBody = CentralBody;
                 _departureCbWindow.IsVisible = GUILayout.Toggle(
                     _departureCbWindow.IsVisible,
-                    DepartureCb.displayName.LocalizeRemoveGender(),
-                    ValidOriginOrDestination(DepartureCb) && DepartureCb != ArrivalCb
+                    DepartureBody.Name,
+                    ValidOriginOrDestination(DepartureBody) && !DepartureBody.Equals(ArrivalBody)
                         ? ButtonStyle
                         : InvalidButtonStyle,
                     GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f));
             }
-            LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
-            LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
+            using (new GuiEnabled(DepartureBody.IsCelestial))
+            {
+                LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
+                LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
+            }
             LabeledDateInput("Earliest", ref _earliestDeparture);
             LabeledDateInput("Latest", ref _latestDeparture);
         }
@@ -233,14 +242,17 @@ public class MainWindow : MonoBehaviour
                 _arrivalCbWindow.CentralBody = CentralBody;
                 _arrivalCbWindow.IsVisible = GUILayout.Toggle(
                     _arrivalCbWindow.IsVisible,
-                    ArrivalCb.displayName.LocalizeRemoveGender(),
-                    ValidOriginOrDestination(ArrivalCb) && DepartureCb != ArrivalCb
+                    ArrivalBody.Name,
+                    ValidOriginOrDestination(ArrivalBody) && !DepartureBody.Equals(ArrivalBody)
                         ? ButtonStyle
                         : InvalidButtonStyle,
                     GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2));
             }
-            LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
-            _circularize = GUILayout.Toggle(_circularize, "Circularize");
+            using (new GuiEnabled(ArrivalBody.IsCelestial))
+            {
+                LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
+                _circularize = GUILayout.Toggle(_circularize, "Circularize");
+            }
             LabeledDateInput("Earliest", ref _earliestArrival);
             LabeledDateInput("Latest", ref _latestArrival);
         }
@@ -387,10 +399,16 @@ public class MainWindow : MonoBehaviour
         {
             if (GUILayout.Button("Create alarm")) { CreateAlarm(); }
             if (KACWrapper.APIReady && GUILayout.Button("Create KAC alarm")) { CreateKACAlarm(); }
+
             if (CurrentSceneHasMapView())
             {
-                _showParkingOrbit = GUILayout.Toggle(_showParkingOrbit, "Show parking orbit in map view", ButtonStyle);
-                _showEjectAngle = GUILayout.Toggle(_showEjectAngle, "Show ejection angles in map view", ButtonStyle);
+                using (new GuiEnabled(_transferDetails.IsValid && _transferDetails.Origin.IsCelestial))
+                {
+                    _showParkingOrbit = GUILayout.Toggle(
+                        _showParkingOrbit, "Show parking orbit in map view", ButtonStyle);
+                    _showEjectAngle = GUILayout.Toggle(
+                        _showEjectAngle, "Show ejection angles in map view", ButtonStyle);
+                }
             }
         }
     }
@@ -398,6 +416,11 @@ public class MainWindow : MonoBehaviour
     private void Update()
     {
         if (!CurrentSceneHasMapView()) { return; }
+        if (!_transferDetails.IsValid || !_transferDetails.Origin.IsCelestial)
+        {
+            _showParkingOrbit = _showEjectAngle = false;
+        }
+
         if (_showParkingOrbit && _parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
         else if (!_showParkingOrbit && _parkingOrbitRenderer != null) { DisableParkingOrbitRenderer(); }
 
@@ -414,7 +437,7 @@ public class MainWindow : MonoBehaviour
         }
 
         _solver.GeneratePorkchop(
-            DepartureCb, ArrivalCb,
+            DepartureBody, ArrivalBody,
             _earliestDeparture.Ut, _latestDeparture.Ut,
             _earliestArrival.Ut, _latestArrival.Ut,
             _departureAltitude.Value * 1e3, _arrivalAltitude.Value * 1e3, _circularize);
@@ -435,8 +458,9 @@ public class MainWindow : MonoBehaviour
     {
         var (tDep, tArr) = _solver.TimesFor(point);
         _selectedTransfer = point;
+        // FIXME: uses the bodies as set in the UI, but the porkchop might have been generated with different bodies.
         _transferDetails = Solver.CalculateDetails(
-            DepartureCb, ArrivalCb, _departureAltitude.Value * 1e3,
+            DepartureBody, ArrivalBody, _departureAltitude.Value * 1e3,
             _arrivalAltitude.Value * 1e3,
             Deg2Rad(_departureInclination.Value), _circularize, tDep, tArr);
 
@@ -447,8 +471,11 @@ public class MainWindow : MonoBehaviour
     private void EnableParkingOrbitRenderer()
     {
         if (_parkingOrbitRenderer != null) { _parkingOrbitRenderer.Cleanup(); }
+        if (!_transferDetails.IsValid) { return; }
+        if (!_transferDetails.Origin.IsCelestial) { return; }
+
         _parkingOrbitRenderer = ParkingOrbitRenderer.Setup(
-            DepartureCb,
+            _transferDetails.Origin.Celestial!,
             _transferDetails.DeparturePeriapsis,
             Rad2Deg(_transferDetails.DepartureInclination),
             Rad2Deg(_transferDetails.DepartureLAN));
@@ -463,6 +490,8 @@ public class MainWindow : MonoBehaviour
 
     private void EnableEjectionRenderer()
     {
+        if (!_transferDetails.IsValid) { return; }
+        if (!_transferDetails.Origin.IsCelestial) { return; }
         if (_ejectAngleRenderer == null) { return; }
         var vInf = new Vector3d(
             _transferDetails.DepartureVInf.x,
@@ -473,7 +502,7 @@ public class MainWindow : MonoBehaviour
             _transferDetails.DeparturePeDirection.y,
             _transferDetails.DeparturePeDirection.z);
 
-        _ejectAngleRenderer.Draw(DepartureCb, vInf, peDir);
+        _ejectAngleRenderer.Draw(_transferDetails.Origin.Celestial!, vInf, peDir);
     }
 
     private void DisableEjectionRenderer()
@@ -494,8 +523,8 @@ public class MainWindow : MonoBehaviour
             KACWrapper.KACAPI.AlarmTypeEnum.TransferModelled,
             string.Format(
                 "{0} -> {1} ({2})",
-                _transferDetails.Origin.bodyDisplayName.LocalizeRemoveGender(),
-                _transferDetails.Destination.bodyDisplayName.LocalizeRemoveGender(),
+                _transferDetails.Origin.Name,
+                _transferDetails.Destination.Name,
                 KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, _transferDetails.IsShort)),
             _transferDetails.DepartureTime - 24 * 60 * 60);
 
@@ -503,8 +532,8 @@ public class MainWindow : MonoBehaviour
         alarm.Notes = _transferDetails.Description();
         alarm.AlarmMargin = 24 * 60 * 60;
         alarm.AlarmAction = KACWrapper.KACAPI.AlarmActionEnum.KillWarp;
-        alarm.XferOriginBodyName = _transferDetails.Origin.bodyDisplayName.LocalizeRemoveGender();
-        alarm.XferTargetBodyName = _transferDetails.Destination.bodyDisplayName.LocalizeRemoveGender();
+        alarm.XferOriginBodyName = _transferDetails.Origin.Name;
+        alarm.XferTargetBodyName = _transferDetails.Destination.Name;
     }
 
     private static void DrawTexture(Texture2D tex, double[,] c3, double minC3, double maxC3)
@@ -523,18 +552,18 @@ public class MainWindow : MonoBehaviour
     private void ResetTimes()
     {
         var departureRange = Math.Min(
-            2 * SynodicPeriod(DepartureCb.orbit.period, ArrivalCb.orbit.period),
-            2 * DepartureCb.orbit.period);
+            2 * SynodicPeriod(DepartureBody.Orbit.period, ArrivalBody.Orbit.period),
+            2 * DepartureBody.Orbit.period);
 
         _earliestDeparture.Ut = Planetarium.GetUniversalTime();
         _latestDeparture.Ut = _earliestDeparture.Ut + departureRange;
 
         var hohmannTime = HohmannTime(
-            DepartureCb.referenceBody.gravParameter,
-            DepartureCb.orbit.semiMajorAxis,
-            ArrivalCb.orbit.semiMajorAxis);
-        var transferMin = Math.Max(hohmannTime - ArrivalCb.orbit.period, hohmannTime / 2);
-        var travelMax = transferMin + Math.Min(2 * ArrivalCb.orbit.period, hohmannTime);
+            DepartureBody.Orbit.referenceBody.gravParameter,
+            DepartureBody.Orbit.semiMajorAxis,
+            ArrivalBody.Orbit.semiMajorAxis);
+        var transferMin = Math.Max(hohmannTime - ArrivalBody.Orbit.period, hohmannTime / 2);
+        var travelMax = transferMin + Math.Min(2 * ArrivalBody.Orbit.period, hohmannTime);
 
         _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
         _latestArrival.Ut = _latestDeparture.Ut + travelMax;

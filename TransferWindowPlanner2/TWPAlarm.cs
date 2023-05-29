@@ -23,8 +23,8 @@ public class TWPAlarm : AlarmTypeBase
         actions.warp = AlarmActions.WarpEnum.KillWarp;
         title = string.Format(
             "{0} -> {1} ({2})",
-            transfer.Origin.bodyDisplayName.LocalizeRemoveGender(),
-            transfer.Destination.bodyDisplayName.LocalizeRemoveGender(),
+            transfer.Origin.Name,
+            transfer.Destination.Name,
             KSPUtil.PrintDateDelta(transfer.TimeOfFlight, transfer.IsShort));
         description = transfer.Description();
     }
