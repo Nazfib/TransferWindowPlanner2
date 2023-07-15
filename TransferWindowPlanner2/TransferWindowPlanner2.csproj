@@ -38,6 +38,9 @@
     <ItemGroup>
         <Compile Remove="MechJebLib\PVG\**" />
         <Compile Remove="MechJebLib\Maneuvers\**" />
+        <Compile Remove="MechJebLib\Simulations\**" />
+        <Compile Remove="MechJebLib\Suicide.cs" />
+        <Compile Remove="MechJebLib\SuicideBuilder.cs" />
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">
