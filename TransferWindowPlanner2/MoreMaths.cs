@@ -15,7 +15,7 @@ public static class MoreMaths
     public static double HohmannTime(double mu, double sma1, double sma2)
     {
         var a = (sma1 + sma2) * 0.5;
-        return Math.PI * Math.Sqrt(a * a * a / mu);
+        return .5 * TAU * Math.Sqrt(a * a * a / mu);
     }
 
     private static double PeriapsisVelocityElliptical(double mu, double periapsis, double apoapsis)
@@ -40,13 +40,14 @@ public static class MoreMaths
 
     public static V3 PeriapsisDirection(double mu, V3 vInf, double periapsis, double inclination, double lan)
     {
-        // TODO: make this more accurate, by adjusting for SoI radius
+        // Ignore the slight difference between the direction of the escape velocity at SOI radius, and velocity at
+        // infinite distance.
         var c3 = vInf.sqrMagnitude;
         var sma = -mu / c3;
         var ecc = 1.0 - periapsis / sma;
         var nuInf = SafeAcos(-1.0 / ecc);
 
-        var normal = new V3(1.0, inclination, lan - .5 * PI).sph2cart;
+        var normal = new V3(1.0, inclination, lan - .25 * TAU).sph2cart;
         var peDir = Q3.AngleAxis(-nuInf, normal) * vInf;
         return peDir.normalized;
     }
@@ -63,7 +64,7 @@ public static class MoreMaths
         else
         {
             inc = Math.Abs(declination);
-            lan = rightAscension - 0.5 * Math.PI * Math.Sign(declination);
+            lan = rightAscension - 0.25 * TAU * Math.Sign(declination);
         }
         return (inc, Clamp2Pi(lan));
     }

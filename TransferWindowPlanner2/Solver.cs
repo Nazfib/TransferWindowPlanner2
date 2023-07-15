@@ -292,11 +292,11 @@ Total Δv: {TotalΔv.ToSI()}m/s";
         var arrDistance = (originPosAtArrival - arrPos).magnitude;
 
         var depAsySpherical = depVInf.cart2sph;
-        var depAsyDecl = 0.5 * PI - depAsySpherical[1];
+        var depAsyDecl = 0.25 * TAU - depAsySpherical[1];
         var depAsyRA = depAsySpherical[2];
 
         var arrAsySpherical = arrVInf.cart2sph;
-        var arrAsyDecl = 0.5 * PI - arrAsySpherical[1];
+        var arrAsyDecl = 0.25 * TAU - arrAsySpherical[1];
         var arrAsyRA = arrAsySpherical[2];
 
         var (depInc, depLAN) = LANAndIncForAsymptote(_departureMinInc, depAsyDecl, depAsyRA);
