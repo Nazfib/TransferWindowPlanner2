@@ -10,14 +10,20 @@ public static class GuiUtils
 {
     public struct DoubleInput
     {
-        public DoubleInput(double value)
+        public DoubleInput(double value, double min = double.MinValue, double max = double.MaxValue)
         {
             _text = value.ToString(CultureInfo.CurrentCulture);
-            Valid = true;
-            Value = value;
+            _value = value;
+            _parsed = true;
+            Min = min;
+            Max = max;
         }
 
         private string _text;
+        private double _value;
+        private bool _parsed;
+
+        public double Min, Max;
 
         public string Text
         {
@@ -27,15 +33,26 @@ public static class GuiUtils
                 _text = value;
                 if (double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out var result))
                 {
-                    Valid = true;
-                    Value = result;
+                    _parsed = true;
+                    _value = result;
                 }
-                else { Valid = false; }
+                else { _parsed = false; }
             }
         }
 
-        public bool Valid;
-        public double Value;
+
+        public double Value
+        {
+            get => _value;
+            set
+            {
+                _value = value;
+                _text = value.ToString(CultureInfo.CurrentCulture);
+                _parsed = true;
+            }
+        }
+
+        public bool Valid => _parsed && Min <= _value && _value <= Max;
     }
 
     public struct DateInput

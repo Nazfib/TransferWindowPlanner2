@@ -50,9 +50,9 @@ public class MainWindow : MonoBehaviour
             ? throw new InvalidOperationException()
             : _centralBodyWindow.SelectedBody.Celestial;
 
-    private DoubleInput _departureAltitude = new DoubleInput(100.0);
-    private DoubleInput _departureInclination = new DoubleInput(0.0);
-    private DoubleInput _arrivalAltitude = new DoubleInput(100.0);
+    private DoubleInput _departureAltitude = new DoubleInput(100.0, 0.0);
+    private DoubleInput _departureInclination = new DoubleInput(0.0, 0.0, 90.0);
+    private DoubleInput _arrivalAltitude = new DoubleInput(100.0, 0.0);
     private bool _circularize = true;
 
     private DateInput _earliestDeparture = new DateInput(0.0);
@@ -60,7 +60,7 @@ public class MainWindow : MonoBehaviour
     private DateInput _earliestArrival = new DateInput(0.0);
     private DateInput _latestArrival = new DateInput(0.0);
 
-    private DoubleInput _plotMargin = new DoubleInput(2.0);
+    private DoubleInput _plotMargin = new DoubleInput(2.0, 1.0);
 
     private (int, int) _selectedTransfer;
     private Solver.TransferDetails _transferDetails;
@@ -185,13 +185,14 @@ public class MainWindow : MonoBehaviour
         !DepartureBody.Equals(ArrivalBody) &&
         _departureAltitude.Valid &&
         (!DepartureBody.IsCelestial ||
-         _departureAltitude.Value + DepartureBody.Celestial!.Radius < DepartureBody.Celestial!.sphereOfInfluence) &&
+         _departureAltitude.Value * 1e3 + DepartureBody.Celestial!.Radius <
+         DepartureBody.Celestial!.sphereOfInfluence) &&
         _departureInclination.Valid &&
         _earliestDeparture.Valid &&
         _latestDeparture.Valid &&
         _arrivalAltitude.Valid &&
         (!ArrivalBody.IsCelestial ||
-         _arrivalAltitude.Value + ArrivalBody.Celestial!.Radius < ArrivalBody.Celestial!.sphereOfInfluence) &&
+         _arrivalAltitude.Value * 1e3 + ArrivalBody.Celestial!.Radius < ArrivalBody.Celestial!.sphereOfInfluence) &&
         _earliestArrival.Valid &&
         _latestArrival.Valid &&
         _plotMargin.Valid;
