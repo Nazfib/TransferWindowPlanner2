@@ -344,8 +344,9 @@ public class MainWindow : MonoBehaviour
             LabeledInfo("Periapsis altitude", $"{_transferDetails.DeparturePeriapsis.ToSI()}m");
             LabeledInfo("Inclination", $"{Rad2Deg(_transferDetails.DepartureInclination):F2} °");
             LabeledInfo("LAN", $"{Rad2Deg(_transferDetails.DepartureLAN):F2} °");
-            LabeledInfo("Asymptote right ascension", $"{Rad2Deg(_transferDetails.DepartureAsyRA):F2} °");
-            LabeledInfo("Asymptote declination", $"{Rad2Deg(_transferDetails.DepartureAsyDecl):F2} °");
+            LabeledInfo(
+                "Asymptote direction",
+                $"{Rad2Deg(_transferDetails.DepartureAsyRA):F2}° RA\n{Rad2Deg(_transferDetails.DepartureAsyDecl):F2}° Dec");
             LabeledInfo("C3", $"{_transferDetails.DepartureC3 / 1e6:F2} km²/s²");
             LabeledInfo("Δv", $"{_transferDetails.DepartureΔv.ToSI()}m/s");
         }
@@ -370,8 +371,9 @@ public class MainWindow : MonoBehaviour
             LabeledInfo("Periapsis altitude", $"{_transferDetails.ArrivalPeriapsis.ToSI()}m");
             LabeledInfo("Distance between bodies", $"{_transferDetails.ArrivalDistance.ToSI()}m");
             GUILayout.Label(""); // Empty row
-            LabeledInfo("Asymptote right ascension", $"{Rad2Deg(_transferDetails.ArrivalAsyRA):F2} °");
-            LabeledInfo("Asymptote declination", $"{Rad2Deg(_transferDetails.ArrivalAsyDecl):F2} °");
+            LabeledInfo(
+                "Asymptote direction",
+                $"{Rad2Deg(_transferDetails.DepartureAsyRA):F2}° RA\n{Rad2Deg(_transferDetails.DepartureAsyDecl):F2}° Dec");
             LabeledInfo("C3", $"{_transferDetails.ArrivalC3 / 1e6:F2} km²/s²");
             LabeledInfo("Δv", $"{_transferDetails.ArrivalΔv.ToSI()}m/s");
         }
@@ -574,9 +576,9 @@ public class MainWindow : MonoBehaviour
     {
         using (new GUILayout.HorizontalScope())
         {
-            GUILayout.Label(label);
+            GUILayout.Label(label, ResultLabelStyle);
             GUILayout.FlexibleSpace();
-            GUILayout.Label(value);
+            GUILayout.Label(value, ResultValueStyle);
         }
     }
 
@@ -584,20 +586,20 @@ public class MainWindow : MonoBehaviour
     {
         using var scope = new GUILayout.HorizontalScope();
 
-        GUILayout.Label(label);
+        GUILayout.Label(label, ResultLabelStyle);
         GUILayout.FlexibleSpace();
         input.Text = GUILayout.TextField(
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
             GUILayout.Width(100));
-        if (!string.IsNullOrEmpty(unit)) { GUILayout.Label(unit, GUILayout.ExpandWidth(false)); }
+        if (!string.IsNullOrEmpty(unit)) { GUILayout.Label(unit, ResultLabelStyle, GUILayout.ExpandWidth(false)); }
     }
 
     private void LabeledDateInput(string label, ref DateInput input)
     {
         using var scope = new GUILayout.HorizontalScope();
 
-        GUILayout.Label(label);
+        GUILayout.Label(label, ResultLabelStyle);
         GUILayout.FlexibleSpace();
 
         input.Text = GUILayout.TextField(

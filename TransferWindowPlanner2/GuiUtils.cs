@@ -157,5 +157,11 @@ public static class GuiUtils
 
     internal static readonly GUIStyle InvalidButtonStyle = new GUIStyle(ButtonStyle)
         { normal = { textColor = Color.red } };
+
+    internal static readonly GUIStyle ResultLabelStyle = new GUIStyle(HighLogic.Skin.label)
+        { alignment = TextAnchor.MiddleLeft };
+
+    internal static readonly GUIStyle ResultValueStyle = new GUIStyle(HighLogic.Skin.label)
+        { alignment = TextAnchor.MiddleRight };
 }
 }
