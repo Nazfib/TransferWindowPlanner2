@@ -3,6 +3,7 @@ using System;
 namespace TransferWindowPlanner2
 {
 public readonly struct Endpoint
+    : IEquatable<Endpoint>
 {
     public Orbit Orbit => Celestial != null
         ? Celestial.orbit
@@ -35,8 +36,7 @@ public readonly struct Endpoint
     }
 
 
-    public bool Equals(Endpoint other) =>
-        Orbit.Equals(other.Orbit) && Equals(Celestial, other.Celestial) && Equals(Vessel, other.Vessel);
+    public bool Equals(Endpoint other) => Equals(Celestial, other.Celestial) && Equals(Vessel, other.Vessel);
 
     public override bool Equals(object? obj) => obj is Endpoint other && Equals(other);
 
@@ -44,11 +44,13 @@ public readonly struct Endpoint
     {
         unchecked
         {
-            var hashCode = Orbit.GetHashCode();
-            hashCode = hashCode * 397 ^ Name.GetHashCode();
-            hashCode = hashCode * 397 ^ (Celestial != null ? Celestial.GetHashCode() : 0);
-            return hashCode;
+            return (Celestial != null ? Celestial.GetHashCode() : 0) * 397 ^
+                   (Vessel != null ? Vessel.GetHashCode() : 0);
         }
     }
+
+    public static bool operator ==(Endpoint left, Endpoint right) => left.Equals(right);
+
+    public static bool operator !=(Endpoint left, Endpoint right) => !left.Equals(right);
 }
 }

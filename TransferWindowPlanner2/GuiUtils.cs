@@ -128,7 +128,7 @@ public static class GuiUtils
         }
     }
 
-    internal static bool CurrentSceneHasMapView() =>
+    public static bool CurrentSceneHasMapView() =>
         HighLogic.LoadedScene is GameScenes.FLIGHT
         || HighLogic.LoadedScene is GameScenes.TRACKSTATION;
 
@@ -148,37 +148,39 @@ public static class GuiUtils
         }
     }
 
-    internal static readonly GUIStyle BoxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
+    public static readonly Color Orange = new Color(1.0f, 0.65f, 0.0f);
 
-    internal static readonly GUIStyle BoxTitleStyle = new GUIStyle(HighLogic.Skin.label)
+    public static readonly GUIStyle BoxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
+
+    public static readonly GUIStyle BoxTitleStyle = new GUIStyle(HighLogic.Skin.label)
     {
         alignment = TextAnchor.MiddleCenter,
         fontStyle = FontStyle.Bold,
     };
 
-    internal static readonly GUIStyle PlotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
+    public static readonly GUIStyle PlotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
 
-    internal static readonly GUIStyle PlotTooltipStyle = new GUIStyle(HighLogic.Skin.box)
+    public static readonly GUIStyle PlotTooltipStyle = new GUIStyle(HighLogic.Skin.box)
     {
         alignment = TextAnchor.MiddleLeft,
         fontStyle = FontStyle.Normal,
     };
 
-    internal static readonly GUIStyle InputStyle = new GUIStyle(HighLogic.Skin.textField)
+    public static readonly GUIStyle InputStyle = new GUIStyle(HighLogic.Skin.textField)
         { alignment = TextAnchor.MiddleRight };
 
-    internal static readonly GUIStyle InvalidInputStyle = new GUIStyle(InputStyle)
-        { normal = { textColor = Color.red } };
+    public static readonly GUIStyle InvalidInputStyle = new GUIStyle(InputStyle)
+        { normal = { textColor = Orange } };
 
-    internal static readonly GUIStyle ButtonStyle = new GUIStyle(HighLogic.Skin.button);
+    public static readonly GUIStyle ButtonStyle = new GUIStyle(HighLogic.Skin.button);
 
-    internal static readonly GUIStyle InvalidButtonStyle = new GUIStyle(ButtonStyle)
-        { normal = { textColor = Color.red } };
+    public static readonly GUIStyle InvalidButtonStyle = new GUIStyle(ButtonStyle)
+        { normal = { textColor = Orange } };
 
-    internal static readonly GUIStyle ResultLabelStyle = new GUIStyle(HighLogic.Skin.label)
+    public static readonly GUIStyle ResultLabelStyle = new GUIStyle(HighLogic.Skin.label)
         { alignment = TextAnchor.MiddleLeft };
 
-    internal static readonly GUIStyle ResultValueStyle = new GUIStyle(HighLogic.Skin.label)
+    public static readonly GUIStyle ResultValueStyle = new GUIStyle(HighLogic.Skin.label)
         { alignment = TextAnchor.MiddleRight };
 }
 }

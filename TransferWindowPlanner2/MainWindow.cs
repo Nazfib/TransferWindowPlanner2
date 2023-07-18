@@ -35,20 +35,14 @@ public class MainWindow : MonoBehaviour
     private PlotType _selectedPlot = PlotType.Total;
 
     private bool _showMainWindow;
-    private Rect _winPos = new Rect(450, 100, WindowWidth, WindowHeight);
+    internal Rect WinPos = new Rect(450, 100, WindowWidth, WindowHeight);
     private Rect _plotPosition;
 
     // Input fields
-    private BodySelectionWindow _departureBodyWindow = null!;
-    private BodySelectionWindow _arrivalBodyWindow = null!;
-    private BodySelectionWindow _centralBodyWindow = null!;
-    private Endpoint DepartureBody => _departureBodyWindow.SelectedBody;
-    private Endpoint ArrivalBody => _arrivalBodyWindow.SelectedBody;
-
-    private CelestialBody CentralBody =>
-        _centralBodyWindow.SelectedBody.Celestial == null
-            ? throw new InvalidOperationException()
-            : _centralBodyWindow.SelectedBody.Celestial;
+    private BodySelectionWindow _bodySelectionWindow = null!;
+    internal CelestialBody CentralBody { get; set; } = null!;
+    internal Endpoint DepartureBody { get; set; }
+    internal Endpoint ArrivalBody { get; set; }
 
     private DoubleInput _departureAltitude = new DoubleInput(100.0, 0.0);
     private DoubleInput _departureInclination = new DoubleInput(0.0, 0.0, 90.0);
@@ -95,19 +89,18 @@ public class MainWindow : MonoBehaviour
             // No valid destinations from the home body: let the user worry about it.
             arrivalCb = departureCb;
         }
+        CentralBody = centralCb;
+        DepartureBody = new Endpoint(departureCb);
+        ArrivalBody = new Endpoint(arrivalCb);
 
-        _departureBodyWindow = BodySelectionWindow.Setup(this, "Origin body", new Endpoint(departureCb));
-        _arrivalBodyWindow = BodySelectionWindow.Setup(this, "Destination body", new Endpoint(arrivalCb));
-        _centralBodyWindow = BodySelectionWindow.Setup(this, "Central body", new Endpoint(centralCb));
+        _bodySelectionWindow = BodySelectionWindow.Setup(this);
         ResetTimes();
     }
 
     public void OnDestroy()
     {
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
-        Destroy(_departureBodyWindow);
-        Destroy(_arrivalBodyWindow);
-        Destroy(_centralBodyWindow);
+        Destroy(_bodySelectionWindow);
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
         if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
     }
@@ -115,7 +108,7 @@ public class MainWindow : MonoBehaviour
     public void OnGUI()
     {
         GUI.skin = HighLogic.Skin;
-        if (_showMainWindow) { _winPos = GUILayout.Window(GetHashCode(), _winPos, WindowGUI, ModName); }
+        if (_showMainWindow) { WinPos = GUILayout.Window(GetHashCode(), WinPos, WindowGUI, ModName); }
     }
 
 
@@ -127,9 +120,7 @@ public class MainWindow : MonoBehaviour
     private void HideWindow()
     {
         _showMainWindow = false;
-        _departureBodyWindow.IsVisible = false;
-        _arrivalBodyWindow.IsVisible = false;
-        _centralBodyWindow.IsVisible = false;
+        _bodySelectionWindow.Which = BodySelectionWindow.SelectionKind.None;
     }
 
     private void OnSceneChange(GameScenes s)
@@ -202,15 +193,21 @@ public class MainWindow : MonoBehaviour
         using var scope = new GUILayout.VerticalScope(
             GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
 
+        var nextSelectionKind = BodySelectionWindow.SelectionKind.None;
+
         using (new GUILayout.HorizontalScope(BoxStyle))
         {
             GUILayout.Label("Central body", BoxTitleStyle);
             GUILayout.FlexibleSpace();
-            _centralBodyWindow.IsVisible = GUILayout.Toggle(
-                _centralBodyWindow.IsVisible,
-                CentralBody.displayName.LocalizeRemoveGender(),
-                ButtonStyle,
-                GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f));
+            if (GUILayout.Toggle(
+                    _bodySelectionWindow.Which is BodySelectionWindow.SelectionKind.Central,
+                    // && nextSelectionKind is BodySelectionWindow.SelectionKind.None, // Always true
+                    CentralBody.displayName.LocalizeRemoveGender(),
+                    ButtonStyle,
+                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f)))
+            {
+                nextSelectionKind = BodySelectionWindow.SelectionKind.Central;
+            }
         }
 
         using (new GUILayout.VerticalScope(BoxStyle))
@@ -219,14 +216,17 @@ public class MainWindow : MonoBehaviour
             {
                 GUILayout.Label("Origin", BoxTitleStyle);
                 GUILayout.FlexibleSpace();
-                _departureBodyWindow.CentralBody = CentralBody;
-                _departureBodyWindow.IsVisible = GUILayout.Toggle(
-                    _departureBodyWindow.IsVisible,
-                    DepartureBody.Name,
-                    ValidOriginOrDestination(DepartureBody) && !DepartureBody.Equals(ArrivalBody)
-                        ? ButtonStyle
-                        : InvalidButtonStyle,
-                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f));
+                if (GUILayout.Toggle(
+                        _bodySelectionWindow.Which is BodySelectionWindow.SelectionKind.Departure
+                        && nextSelectionKind is BodySelectionWindow.SelectionKind.None,
+                        DepartureBody.Name,
+                        ValidOriginOrDestination(DepartureBody) && !DepartureBody.Equals(ArrivalBody)
+                            ? ButtonStyle
+                            : InvalidButtonStyle,
+                        GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f)))
+                {
+                    nextSelectionKind = BodySelectionWindow.SelectionKind.Departure;
+                }
             }
             using (new GuiEnabled(DepartureBody.IsCelestial))
             {
@@ -243,14 +243,17 @@ public class MainWindow : MonoBehaviour
             {
                 GUILayout.Label("Destination", BoxTitleStyle);
                 GUILayout.FlexibleSpace();
-                _arrivalBodyWindow.CentralBody = CentralBody;
-                _arrivalBodyWindow.IsVisible = GUILayout.Toggle(
-                    _arrivalBodyWindow.IsVisible,
-                    ArrivalBody.Name,
-                    ValidOriginOrDestination(ArrivalBody) && !DepartureBody.Equals(ArrivalBody)
-                        ? ButtonStyle
-                        : InvalidButtonStyle,
-                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2));
+                if (GUILayout.Toggle(
+                        _bodySelectionWindow.Which is BodySelectionWindow.SelectionKind.Arrival
+                        && nextSelectionKind is BodySelectionWindow.SelectionKind.None,
+                        ArrivalBody.Name,
+                        ValidOriginOrDestination(ArrivalBody) && !DepartureBody.Equals(ArrivalBody)
+                            ? ButtonStyle
+                            : InvalidButtonStyle,
+                        GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2)))
+                {
+                    nextSelectionKind = BodySelectionWindow.SelectionKind.Arrival;
+                }
             }
             using (new GuiEnabled(ArrivalBody.IsCelestial))
             {
@@ -260,6 +263,8 @@ public class MainWindow : MonoBehaviour
             LabeledDateInput("Earliest", ref _earliestArrival);
             LabeledDateInput("Latest", ref _latestArrival);
         }
+
+        _bodySelectionWindow.Which = nextSelectionKind;
 
         LabeledDoubleInput("Plot margin", ref _plotMargin);
 
@@ -583,7 +588,7 @@ public class MainWindow : MonoBehaviour
         }
     }
 
-    private void LabeledDoubleInput(string label, ref DoubleInput input, string? unit = null)
+    private void LabeledDoubleInput(string label, ref DoubleInput input, string unit = "")
     {
         using var scope = new GUILayout.HorizontalScope();
 
@@ -593,7 +598,7 @@ public class MainWindow : MonoBehaviour
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
             GUILayout.Width(100));
-        if (!string.IsNullOrEmpty(unit)) { GUILayout.Label(unit, ResultLabelStyle, GUILayout.ExpandWidth(false)); }
+        GUILayout.Label(unit, ResultLabelStyle, GUILayout.Width(25));
     }
 
     private void LabeledDateInput(string label, ref DateInput input)
@@ -607,6 +612,8 @@ public class MainWindow : MonoBehaviour
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
             GUILayout.Width(100));
+        // Not using a GUILayout.Space(25) here, so I don't have to figure out padding
+        GUILayout.Label("", ResultLabelStyle, GUILayout.Width(25));
     }
 }
 }
