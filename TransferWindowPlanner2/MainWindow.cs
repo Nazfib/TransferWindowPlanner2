@@ -582,8 +582,9 @@ public class MainWindow : MonoBehaviour
 
     private void ResetTimes()
     {
-        var departureRange = Math.Min(
+        var departureRange = Clamp(
             2 * SynodicPeriod(DepartureBody.Orbit.period, ArrivalBody.Orbit.period),
+            Math.Max(DepartureBody.Orbit.period, KSPUtil.dateTimeFormatter.Day),
             2 * DepartureBody.Orbit.period);
 
         _earliestDeparture.Ut = Planetarium.GetUniversalTime();
@@ -593,8 +594,9 @@ public class MainWindow : MonoBehaviour
             DepartureBody.Orbit.referenceBody.gravParameter,
             DepartureBody.Orbit.semiMajorAxis,
             ArrivalBody.Orbit.semiMajorAxis);
-        var transferMin = Math.Max(hohmannTime - ArrivalBody.Orbit.period, hohmannTime / 2);
-        var travelMax = transferMin + Math.Min(2 * ArrivalBody.Orbit.period, hohmannTime);
+        var transferRange = Math.Min(1.5 * hohmannTime, 2 * ArrivalBody.Orbit.period);
+        var transferMin = Math.Max(0.5 * hohmannTime, hohmannTime - ArrivalBody.Orbit.period);
+        var travelMax = transferMin + transferRange;
 
         _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
         _latestArrival.Ut = _latestDeparture.Ut + travelMax;
