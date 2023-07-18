@@ -16,6 +16,8 @@ public class MainWindow : MonoBehaviour
     private const string Icon = "TransferWindowPlanner2/icon";
     private const string Marker = "TransferWindowPlanner2/marker";
     private static readonly Vector2 MarkerSize = new Vector2(16, 16);
+    private Texture2D _markerTex = null!;
+
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
@@ -24,6 +26,7 @@ public class MainWindow : MonoBehaviour
     private readonly Texture2D _plotArrival = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
     private readonly Texture2D _plotDeparture = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
     private readonly Texture2D _plotTotal = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    private bool _plotIsDrawn = false;
 
     private ApplicationLauncherButton? _button;
 
@@ -74,6 +77,12 @@ public class MainWindow : MonoBehaviour
             _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
         }
         _solver = new Solver(PlotWidth, PlotHeight);
+
+        ClearTexture(_plotDeparture);
+        ClearTexture(_plotArrival);
+        ClearTexture(_plotTotal);
+
+        _markerTex = GameDatabase.Instance.GetTexture(Marker, false);
     }
 
     protected void Start()
@@ -300,35 +309,39 @@ public class MainWindow : MonoBehaviour
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
                 GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
             _plotPosition = GUILayoutUtility.GetLastRect();
-
-            var mousePos = Event.current.mousePosition;
-            if (_plotPosition.Contains(mousePos))
-            {
-                var pos = mousePos - _plotPosition.position;
-                var i = (int)pos.x;
-                var j = (int)pos.y;
-                var (dep, arr) = _solver.TimesFor(i, j);
-                var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}\n"
-                              + $"Arrival: {KSPUtil.PrintDateCompact(arr, false)}\n"
-                              + $"Eject: {_solver.DepΔv[i, j].ToSI()}m/s\n"
-                              + $"Insert: {_solver.ArrΔv[i, j].ToSI()}m/s\n"
-                              + $"Total: {_solver.TotalΔv[i, j].ToSI()}m/s";
-                var size = PlotTooltipStyle.CalcSize(new GUIContent(tooltip));
-                GUI.Label(
-                    new Rect(mousePos.x + 25, mousePos.y - 5, size.x, size.y),
-                    tooltip, PlotTooltipStyle);
-                if (Event.current.type == EventType.MouseUp && Event.current.button == 0)
-                {
-                    UpdateTransferDetails((i, j));
-                }
-            }
-            var selected = new Vector2(_selectedTransfer.Item1, _selectedTransfer.Item2);
-            var tex = GameDatabase.Instance.GetTexture(Marker, false);
-            var markerPosition = _plotPosition.position + selected - 0.5f * MarkerSize;
-            GUI.Box(
-                new Rect(markerPosition, MarkerSize), tex,
-                GUIStyle.none);
         }
+
+        if (!_plotIsDrawn) { return; }
+        PlotHandleMouse();
+        DrawPlotMarker();
+    }
+
+    private void DrawPlotMarker()
+    {
+        var selected = new Vector2(_selectedTransfer.Item1, _selectedTransfer.Item2);
+        var markerPosition = _plotPosition.position + selected - 0.5f * MarkerSize;
+        GUI.Box(new Rect(markerPosition, MarkerSize), _markerTex, GUIStyle.none);
+    }
+
+    private void PlotHandleMouse()
+    {
+        var mousePos = Event.current.mousePosition;
+        if (!_plotPosition.Contains(mousePos)) { return; }
+
+        var pos = mousePos - _plotPosition.position;
+        var i = (int)pos.x;
+        var j = (int)pos.y;
+        var (dep, arr) = _solver.TimesFor(i, j);
+        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}\n"
+                      + $"Arrival: {KSPUtil.PrintDateCompact(arr, false)}\n"
+                      + $"Eject: {_solver.DepΔv[i, j].ToSI()}m/s\n"
+                      + $"Insert: {_solver.ArrΔv[i, j].ToSI()}m/s\n"
+                      + $"Total: {_solver.TotalΔv[i, j].ToSI()}m/s";
+        var size = PlotTooltipStyle.CalcSize(new GUIContent(tooltip));
+        GUI.Label(
+            new Rect(mousePos.x + 25, mousePos.y - 5, size.x, size.y),
+            tooltip, PlotTooltipStyle);
+        if (Event.current.type == EventType.MouseUp && Event.current.button == 0) { UpdateTransferDetails((i, j)); }
     }
 
     private void ShowDepartureInfo()
@@ -461,6 +474,7 @@ public class MainWindow : MonoBehaviour
         DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinArrΔv * _plotMargin.Value);
         DrawTexture(_plotTotal, _solver.TotalΔv, _solver.MinTotalΔv, _solver.MinTotalΔv * _plotMargin.Value);
         UpdateTransferDetails(_solver.MinTotalPoint);
+        _plotIsDrawn = true;
 
         // Reset it for the next time
         _solver.WorkerState = Solver.BackgroundWorkerState.Idle;
@@ -553,6 +567,15 @@ public class MainWindow : MonoBehaviour
                 var color = ColorMap.MapColorReverse((float)c3[i, j], (float)minC3, (float)maxC3);
                 tex.SetPixel(i, PlotHeight - j - 1, color);
             }
+        }
+        tex.Apply();
+    }
+
+    private static void ClearTexture(Texture2D tex)
+    {
+        for (var i = 0; i < tex.width; ++i)
+        {
+            for (var j = 0; j < tex.height; ++j) { tex.SetPixel(i, j, Color.clear); }
         }
         tex.Apply();
     }
