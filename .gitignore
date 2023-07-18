@@ -6,3 +6,6 @@ riderModule.iml
 .idea/
 *.DotSettings.user
 
+TransferWindowPlanner2-Unity/Library
+TransferWindowPlanner2-Unity/Temp
+
