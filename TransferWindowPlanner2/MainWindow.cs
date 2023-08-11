@@ -392,7 +392,7 @@ public class MainWindow : MonoBehaviour
             GUILayout.Label(""); // Empty row
             LabeledInfo(
                 "Asymptote direction",
-                $"{Rad2Deg(_transferDetails.DepartureAsyRA):F2}° RA\n{Rad2Deg(_transferDetails.DepartureAsyDecl):F2}° Dec");
+                $"{Rad2Deg(_transferDetails.ArrivalAsyRA):F2}° RA\n{Rad2Deg(_transferDetails.ArrivalAsyDecl):F2}° Dec");
             LabeledInfo("C3", $"{_transferDetails.ArrivalC3 / 1e6:F2} km²/s²");
             LabeledInfo("Δv", $"{_transferDetails.ArrivalΔv.ToSI()}m/s");
         }
