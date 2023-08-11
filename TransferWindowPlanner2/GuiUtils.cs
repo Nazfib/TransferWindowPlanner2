@@ -10,18 +10,18 @@ public static class GuiUtils
 {
     public struct DoubleInput
     {
-        public DoubleInput(double value, double min = double.MinValue, double max = double.MaxValue)
+        public DoubleInput(double value, double min = double.NegativeInfinity, double max = double.PositiveInfinity)
         {
             _text = value.ToString(CultureInfo.CurrentCulture);
             _value = value;
-            _parsed = true;
+            Parsed = true;
             Min = min;
             Max = max;
         }
 
         private string _text;
         private double _value;
-        private bool _parsed;
+        public bool Parsed { get; private set; }
 
         public double Min, Max;
 
@@ -33,10 +33,10 @@ public static class GuiUtils
                 _text = value;
                 if (double.TryParse(value, NumberStyles.Any, CultureInfo.CurrentCulture, out var result))
                 {
-                    _parsed = true;
+                    Parsed = true;
                     _value = result;
                 }
-                else { _parsed = false; }
+                else { Parsed = false; }
             }
         }
 
@@ -48,16 +48,16 @@ public static class GuiUtils
             {
                 _value = value;
                 _text = value.ToString(CultureInfo.CurrentCulture);
-                _parsed = true;
+                Parsed = true;
             }
         }
 
-        public bool Valid => _parsed && Min <= _value && _value <= Max;
+        public bool Valid => Parsed && Min <= _value && _value <= Max;
     }
 
     public struct DateInput
     {
-        public bool Valid;
+        public bool Valid { get; private set; }
 
         private double _ut;
         private string _text;

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using KSP.UI.Screens;
 using static MechJebLib.Utils.Statics;
@@ -43,9 +44,51 @@ public class MainWindow : MonoBehaviour
 
     // Input fields
     private BodySelectionWindow _bodySelectionWindow = null!;
-    internal CelestialBody CentralBody { get; set; } = null!;
-    internal Endpoint DepartureBody { get; set; }
-    internal Endpoint ArrivalBody { get; set; }
+    private CelestialBody _centralBody = null!;
+    private Endpoint _departureBody;
+    private Endpoint _arrivalBody;
+
+    internal CelestialBody CentralBody
+    {
+        get => _centralBody;
+        set
+        {
+            _centralBody = value;
+            OnInputChanged();
+        }
+    }
+
+    internal Endpoint DepartureBody
+    {
+        get => _departureBody;
+        set
+        {
+            _departureBody = value;
+            if (_departureBody.IsCelestial)
+            {
+                _departureAltitude.Max =
+                    1e-3 * (_departureBody.Celestial!.sphereOfInfluence - _departureBody.Celestial!.Radius);
+            }
+            else { _departureAltitude.Max = double.PositiveInfinity; }
+            OnInputChanged();
+        }
+    }
+
+    internal Endpoint ArrivalBody
+    {
+        get => _arrivalBody;
+        set
+        {
+            _arrivalBody = value;
+            if (_arrivalBody.IsCelestial)
+            {
+                _arrivalAltitude.Max =
+                    1e-3 * (_arrivalBody.Celestial!.sphereOfInfluence - _arrivalBody.Celestial!.Radius);
+            }
+            else { _arrivalAltitude.Max = double.PositiveInfinity; }
+            OnInputChanged();
+        }
+    }
 
     private DoubleInput _departureAltitude = new DoubleInput(100.0, 0.0);
     private DoubleInput _departureInclination = new DoubleInput(0.0, 0.0, 90.0);
@@ -61,6 +104,8 @@ public class MainWindow : MonoBehaviour
 
     private (int, int) _selectedTransfer;
     private Solver.TransferDetails _transferDetails;
+
+    private readonly List<string> _errors = new List<string>();
 
     private Solver _solver = null!; // Initialized in Awake()
 
@@ -98,9 +143,12 @@ public class MainWindow : MonoBehaviour
             // No valid destinations from the home body: let the user worry about it.
             arrivalCb = departureCb;
         }
-        CentralBody = centralCb;
-        DepartureBody = new Endpoint(departureCb);
-        ArrivalBody = new Endpoint(arrivalCb);
+
+        // Set the field directly, bypassing the property; OnInputChanged() gets called later (inside ResetTimes()),
+        // so we skip having to validate the inputs multiple times.
+        _centralBody = centralCb;
+        _departureBody = new Endpoint(departureCb);
+        _arrivalBody = new Endpoint(arrivalCb);
 
         _bodySelectionWindow = BodySelectionWindow.Setup(this);
         ResetTimes();
@@ -179,23 +227,68 @@ public class MainWindow : MonoBehaviour
     private bool ValidOriginOrDestination(Endpoint end) =>
         end.Orbit.referenceBody == CentralBody && end.Celestial != CentralBody;
 
-    private bool ValidInputs() =>
-        ValidOriginOrDestination(DepartureBody) &&
-        ValidOriginOrDestination(ArrivalBody) &&
-        !DepartureBody.Equals(ArrivalBody) &&
-        _departureAltitude.Valid &&
-        (!DepartureBody.IsCelestial ||
-         _departureAltitude.Value * 1e3 + DepartureBody.Celestial!.Radius <
-         DepartureBody.Celestial!.sphereOfInfluence) &&
-        _departureInclination.Valid &&
-        _earliestDeparture.Valid &&
-        _latestDeparture.Valid &&
-        _arrivalAltitude.Valid &&
-        (!ArrivalBody.IsCelestial ||
-         _arrivalAltitude.Value * 1e3 + ArrivalBody.Celestial!.Radius < ArrivalBody.Celestial!.sphereOfInfluence) &&
-        _earliestArrival.Valid &&
-        _latestArrival.Valid &&
-        _plotMargin.Valid;
+    private void OnInputChanged()
+    {
+        ValidateInputs();
+    }
+
+    private void ValidateInputs()
+    {
+        _errors.Clear();
+        if (!ValidOriginOrDestination(DepartureBody))
+        {
+            _errors.Add($"{DepartureBody.Name} does not orbit {CentralBody.displayName.LocalizeRemoveGender()}");
+        }
+        if (!ValidOriginOrDestination(DepartureBody))
+        {
+            _errors.Add($"{ArrivalBody.Name} does not orbit {CentralBody.displayName.LocalizeRemoveGender()}");
+        }
+        if (DepartureBody.Equals(ArrivalBody))
+        {
+            _errors.Add($"Can't plot a transfer from {DepartureBody.Name} to itself");
+        }
+        if (DepartureBody.IsCelestial)
+        {
+            if (!_departureAltitude.Valid || _departureAltitude.Value < 0)
+            {
+                _errors.Add($"Departure altitude should be a number greater than zero ({_departureAltitude.Text})");
+            }
+            else if (_departureAltitude.Value > _departureAltitude.Max)
+            {
+                _errors.Add(
+                    $"{_departureAltitude.Value} km is outside the sphere of influence of {DepartureBody.Name}");
+            }
+
+            if (!_departureInclination.Valid)
+            {
+                _errors.Add(
+                    $"Departure inclination should be a number between 0 and 90 ({_departureInclination.Text})");
+            }
+        }
+
+        if (!_earliestDeparture.Valid) { _errors.Add($"Could not parse departure date ({_earliestDeparture.Text})"); }
+        if (!_latestDeparture.Valid) { _errors.Add($"Could not parse departure date ({_latestDeparture.Text})"); }
+
+        if (ArrivalBody.IsCelestial)
+        {
+            if (!_arrivalAltitude.Parsed || _arrivalAltitude.Value < 0)
+            {
+                _errors.Add($"Arrival altitude should be a positive number ({_arrivalAltitude.Text})");
+            }
+            else if (_arrivalAltitude.Value > _arrivalAltitude.Max)
+            {
+                _errors.Add($"{_arrivalAltitude.Value} km is outside the sphere of influence of {ArrivalBody.Name}");
+            }
+        }
+
+        if (!_earliestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_earliestArrival.Text})"); }
+        if (!_latestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_latestArrival.Text})"); }
+
+        if (!_plotMargin.Valid) { _errors.Add($"Plot margin should be a number greater than 1 ({_plotMargin.Text}"); }
+
+        // FIXME: We currently don't have any way to show this to the user. For debugging purposes, print it out.
+        Debug.Log("[TWP2] Input errors:" + string.Join("\n", _errors));
+    }
 
     private void ShowInputs()
     {
@@ -280,7 +373,7 @@ public class MainWindow : MonoBehaviour
         GUILayout.FlexibleSpace();
 
         if (GUILayout.Button("Reset times")) { ResetTimes(); }
-        using (new GuiEnabled(ValidInputs() && _solver.WorkerState is Solver.BackgroundWorkerState.Idle))
+        using (new GuiEnabled(_errors.Count == 0 && _solver.WorkerState is Solver.BackgroundWorkerState.Idle))
         {
             if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
         }
@@ -600,6 +693,8 @@ public class MainWindow : MonoBehaviour
 
         _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
         _latestArrival.Ut = _latestDeparture.Ut + travelMax;
+        // We set the input value/text directly; therefore, we need to call OnInputChanged manually as well.
+        OnInputChanged();
     }
 
 
@@ -619,10 +714,15 @@ public class MainWindow : MonoBehaviour
 
         GUILayout.Label(label, ResultLabelStyle);
         GUILayout.FlexibleSpace();
-        input.Text = GUILayout.TextField(
+        var newText = GUILayout.TextField(
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
             GUILayout.Width(100));
+        if (newText != input.Text)
+        {
+            input.Text = newText;
+            OnInputChanged();
+        }
         GUILayout.Label(unit, ResultLabelStyle, GUILayout.Width(25));
     }
 
@@ -633,10 +733,15 @@ public class MainWindow : MonoBehaviour
         GUILayout.Label(label, ResultLabelStyle);
         GUILayout.FlexibleSpace();
 
-        input.Text = GUILayout.TextField(
+        var newText = GUILayout.TextField(
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
             GUILayout.Width(100));
+        if (newText != input.Text)
+        {
+            input.Text = newText;
+            OnInputChanged();
+        }
         // Not using a GUILayout.Space(25) here, so I don't have to figure out padding
         GUILayout.Label("", ResultLabelStyle, GUILayout.Width(25));
     }

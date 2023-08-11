@@ -21,7 +21,7 @@ public readonly struct Endpoint
         ? Celestial.displayName.LocalizeRemoveGender()
         : Vessel != null
             ? Vessel.GetDisplayName().LocalizeRemoveGender()
-            : throw new InvalidOperationException("Both Cb and Vessel are null");
+            : "<null>";
 
     public Endpoint(CelestialBody celestial)
     {
