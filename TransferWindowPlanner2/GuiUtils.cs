@@ -160,10 +160,12 @@ public static class GuiUtils
 
     public static readonly GUIStyle PlotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
 
-    public static readonly GUIStyle PlotTooltipStyle = new GUIStyle(HighLogic.Skin.box)
+    public static readonly GUIStyle TooltipStyle = new GUIStyle(HighLogic.Skin.window)
     {
-        alignment = TextAnchor.MiddleLeft,
+        alignment = TextAnchor.UpperLeft,
         fontStyle = FontStyle.Normal,
+        wordWrap = false,
+        padding = { bottom = -10, top = 28, left = 8, right = 6 },
     };
 
     public static readonly GUIStyle InputStyle = new GUIStyle(HighLogic.Skin.textField)

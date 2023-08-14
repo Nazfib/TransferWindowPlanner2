@@ -41,6 +41,7 @@ public class MainWindow : MonoBehaviour
     private bool _showMainWindow;
     internal Rect WinPos = new Rect(450, 100, WindowWidth, WindowHeight);
     private Rect _plotPosition;
+    private string _tooltip = "";
 
     // Input fields
     private BodySelectionWindow _bodySelectionWindow = null!;
@@ -145,10 +146,12 @@ public class MainWindow : MonoBehaviour
         }
 
         // Set the field directly, bypassing the property; OnInputChanged() gets called later (inside ResetTimes()),
-        // so we skip having to validate the inputs multiple times.
+        // so we skip having to validate the inputs multiple times. However, we do need to set the max altitudes.
         _centralBody = centralCb;
         _departureBody = new Endpoint(departureCb);
+        _departureAltitude.Max = 1e-3 * (departureCb.sphereOfInfluence - departureCb.Radius);
         _arrivalBody = new Endpoint(arrivalCb);
+        _arrivalAltitude.Max = 1e-3 * (arrivalCb.sphereOfInfluence - arrivalCb.Radius);
 
         _bodySelectionWindow = BodySelectionWindow.Setup(this);
         ResetTimes();
@@ -165,7 +168,15 @@ public class MainWindow : MonoBehaviour
     public void OnGUI()
     {
         GUI.skin = HighLogic.Skin;
-        if (_showMainWindow) { WinPos = GUILayout.Window(GetHashCode(), WinPos, WindowGUI, ModName); }
+        if (!_showMainWindow) { return; }
+
+        WinPos = GUILayout.Window(GetHashCode(), WinPos, WindowGUI, ModName);
+
+        if (!string.IsNullOrEmpty(_tooltip))
+        {
+            var pos = Event.current.mousePosition + new Vector2(25, -5);
+            GUILayout.Window(GetHashCode() + 1, new Rect(pos, Vector2.zero), TooltipWindowGUI, "", GUIStyle.none);
+        }
     }
 
 
@@ -222,6 +233,14 @@ public class MainWindow : MonoBehaviour
         }
 
         GUI.DragWindow();
+
+        if (Event.current.type is EventType.Repaint) { _tooltip = GUI.tooltip; }
+    }
+
+    private void TooltipWindowGUI(int id)
+    {
+        GUILayout.Label(_tooltip, TooltipStyle);
+        GUI.BringWindowToFront(id);
     }
 
     private bool ValidOriginOrDestination(Endpoint end) =>
@@ -239,7 +258,7 @@ public class MainWindow : MonoBehaviour
         {
             _errors.Add($"{DepartureBody.Name} does not orbit {CentralBody.displayName.LocalizeRemoveGender()}");
         }
-        if (!ValidOriginOrDestination(DepartureBody))
+        if (!ValidOriginOrDestination(ArrivalBody))
         {
             _errors.Add($"{ArrivalBody.Name} does not orbit {CentralBody.displayName.LocalizeRemoveGender()}");
         }
@@ -249,7 +268,7 @@ public class MainWindow : MonoBehaviour
         }
         if (DepartureBody.IsCelestial)
         {
-            if (!_departureAltitude.Valid || _departureAltitude.Value < 0)
+            if (!_departureAltitude.Parsed || _departureAltitude.Value < 0)
             {
                 _errors.Add($"Departure altitude should be a number greater than zero ({_departureAltitude.Text})");
             }
@@ -268,6 +287,10 @@ public class MainWindow : MonoBehaviour
 
         if (!_earliestDeparture.Valid) { _errors.Add($"Could not parse departure date ({_earliestDeparture.Text})"); }
         if (!_latestDeparture.Valid) { _errors.Add($"Could not parse departure date ({_latestDeparture.Text})"); }
+        if (_earliestDeparture.Ut >= _latestDeparture.Ut)
+        {
+            _errors.Add("Earliest departure must be before latest departure");
+        }
 
         if (ArrivalBody.IsCelestial)
         {
@@ -283,11 +306,14 @@ public class MainWindow : MonoBehaviour
 
         if (!_earliestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_earliestArrival.Text})"); }
         if (!_latestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_latestArrival.Text})"); }
+        if (_earliestArrival.Ut >= _latestArrival.Ut) { _errors.Add("Earliest arrival must be before latest arrival"); }
 
-        if (!_plotMargin.Valid) { _errors.Add($"Plot margin should be a number greater than 1 ({_plotMargin.Text}"); }
+        if (_earliestDeparture.Ut >= _latestArrival.Ut)
+        {
+            _errors.Add("Earliest departure must be before latest arrival");
+        }
 
-        // FIXME: We currently don't have any way to show this to the user. For debugging purposes, print it out.
-        Debug.Log("[TWP2] Input errors:" + string.Join("\n", _errors));
+        if (!_plotMargin.Valid) { _errors.Add($"Plot margin should be a number greater than 1 ({_plotMargin.Text})"); }
     }
 
     private void ShowInputs()
@@ -375,7 +401,7 @@ public class MainWindow : MonoBehaviour
         if (GUILayout.Button("Reset times")) { ResetTimes(); }
         using (new GuiEnabled(_errors.Count == 0 && _solver.WorkerState is Solver.BackgroundWorkerState.Idle))
         {
-            if (GUILayout.Button("Plot it!")) { GeneratePlots(); }
+            if (GUILayout.Button(new GUIContent("Plot it!", string.Join("\n", _errors)))) { GeneratePlots(); }
         }
 
         GUILayout.FlexibleSpace();
@@ -390,23 +416,27 @@ public class MainWindow : MonoBehaviour
             _selectedPlot = (PlotType)GUILayout.SelectionGrid(
                 (int)_selectedPlot, new[] { "Departure", "Arrival", "Total" }, 3);
 
+
+            // Ideally, we'd like to handle this _after_ drawing the plot (and therefore updating _plotPosition);
+            // however, we need the tooltip string earlier. The position might be a frame outdated; don't worry about
+            // it.
+            var tooltip = PlotHandleMouse();
             GUILayout.Box(
-                _selectedPlot switch
-                {
-                    PlotType.Departure => _plotDeparture,
-                    PlotType.Arrival => _plotArrival,
-                    PlotType.Total => _plotTotal,
-                    _ => _plotTotal,
-                },
+                new GUIContent(
+                    _selectedPlot switch
+                    {
+                        PlotType.Departure => _plotDeparture,
+                        PlotType.Arrival => _plotArrival,
+                        PlotType.Total => _plotTotal,
+                        _ => _plotTotal,
+                    }, tooltip),
                 PlotBoxStyle,
                 GUILayout.Width(PlotWidth), GUILayout.Height(PlotHeight),
                 GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
-            _plotPosition = GUILayoutUtility.GetLastRect();
+            if (Event.current.type is EventType.Repaint) { _plotPosition = GUILayoutUtility.GetLastRect(); }
         }
 
-        if (!_plotIsDrawn) { return; }
-        PlotHandleMouse();
-        DrawPlotMarker();
+        if (_plotIsDrawn) { DrawPlotMarker(); }
     }
 
     private void DrawPlotMarker()
@@ -416,25 +446,27 @@ public class MainWindow : MonoBehaviour
         GUI.Box(new Rect(markerPosition, MarkerSize), _markerTex, GUIStyle.none);
     }
 
-    private void PlotHandleMouse()
+    private string PlotHandleMouse()
     {
+        if (!_plotIsDrawn) { return ""; }
         var mousePos = Event.current.mousePosition;
-        if (!_plotPosition.Contains(mousePos)) { return; }
+        if (!_plotPosition.Contains(mousePos)) { return ""; }
 
         var pos = mousePos - _plotPosition.position;
         var i = (int)pos.x;
         var j = (int)pos.y;
         var (dep, arr) = _solver.TimesFor(i, j);
-        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}\n"
-                      + $"Arrival: {KSPUtil.PrintDateCompact(arr, false)}\n"
-                      + $"Eject: {_solver.DepΔv[i, j].ToSI()}m/s\n"
-                      + $"Insert: {_solver.ArrΔv[i, j].ToSI()}m/s\n"
-                      + $"Total: {_solver.TotalΔv[i, j].ToSI()}m/s";
-        var size = PlotTooltipStyle.CalcSize(new GUIContent(tooltip));
-        GUI.Label(
-            new Rect(mousePos.x + 25, mousePos.y - 5, size.x, size.y),
-            tooltip, PlotTooltipStyle);
+        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}"
+                      + $"\nArrival: {KSPUtil.PrintDateCompact(arr, false)}";
+        if (dep < arr)
+        {
+            tooltip += $"\nEject: {_solver.DepΔv[i, j].ToSI()}m/s"
+                       + $"\nInsert: {_solver.ArrΔv[i, j].ToSI()}m/s"
+                       + $"\nTotal: {_solver.TotalΔv[i, j].ToSI()}m/s";
+        }
+
         if (Event.current.type == EventType.MouseUp && Event.current.button == 0) { UpdateTransferDetails((i, j)); }
+        return tooltip;
     }
 
     private void ShowDepartureInfo()
