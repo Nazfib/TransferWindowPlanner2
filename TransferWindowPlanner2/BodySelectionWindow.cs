@@ -61,7 +61,7 @@ public class BodySelectionWindow : MonoBehaviour
     {
         using var scope = new GUILayout.VerticalScope();
 
-        using (new GuiEnabled(Which is SelectionKind.Departure || Which is SelectionKind.Arrival))
+        using (new GuiEnabled(Which is SelectionKind.Arrival))
         {
             ShowVessels = GUILayout.Toggle(ShowVessels, "Show vessels");
         }
