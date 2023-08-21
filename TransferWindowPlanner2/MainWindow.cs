@@ -108,6 +108,7 @@ public class MainWindow : MonoBehaviour
 
     private readonly List<string> _errors = new List<string>();
 
+    private bool _hasPrincipia;
     private Solver _solver = null!; // Initialized in Awake()
 
     private MapAngleRenderer? _ejectAngleRenderer;
@@ -122,7 +123,10 @@ public class MainWindow : MonoBehaviour
         {
             _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
         }
-        _solver = new Solver(PlotWidth, PlotHeight);
+        _hasPrincipia =
+            AssemblyLoader.loadedAssemblies.Any(a => a.assembly.GetName().Name == "principia.ksp_plugin_adapter");
+        Debug.Log("[TWP2] Detected Principia");
+        _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
         ClearTexture(_plotDeparture);
         ClearTexture(_plotArrival);
@@ -774,7 +778,8 @@ public class MainWindow : MonoBehaviour
             input.Text = newText;
             OnInputChanged();
         }
-        // Not using a GUILayout.Space(25) here, so I don't have to figure out padding
+        // Not using a GUILayout.Space(25) here, so I don't have to figure out what padding to use to make it the same
+        // size as a LabeledDoubleInput
         GUILayout.Label("", ResultLabelStyle, GUILayout.Width(25));
     }
 }

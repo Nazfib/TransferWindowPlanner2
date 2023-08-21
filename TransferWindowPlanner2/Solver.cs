@@ -15,6 +15,7 @@ public class Solver
 
     private readonly int _nDepartures;
     private readonly int _nArrivals;
+    private bool _hasPrincipia;
 
     private readonly V3[] _depPos;
     private readonly V3[] _depVel;
@@ -51,7 +52,7 @@ public class Solver
 
     internal BackgroundWorkerState WorkerState = BackgroundWorkerState.Idle;
 
-    public Solver(int nDepartures, int nArrivals)
+    public Solver(int nDepartures, int nArrivals, bool hasPrincipia)
     {
         _nDepartures = nDepartures;
         _nArrivals = nArrivals;
@@ -67,6 +68,7 @@ public class Solver
         TotalΔv = new double[nDepartures, nArrivals];
         // (400 * 400) * (3*8) = 3.66 MiB
 
+        _hasPrincipia = hasPrincipia;
         _backgroundWorker = new BackgroundWorker();
     }
 
@@ -106,11 +108,11 @@ public class Solver
 
         for (var i = 0; i < _nDepartures; ++i)
         {
-            (_depPos[i], _depVel[i]) = BodyStateVectorsAt(origin.Orbit, DepartureTime(i));
+            (_depPos[i], _depVel[i]) = BodyStateVectorsAt(origin, DepartureTime(i));
         }
         for (var j = 0; j < _nArrivals; ++j)
         {
-            (_arrPos[j], _arrVel[j]) = BodyStateVectorsAt(destination.Orbit, ArrivalTime(j));
+            (_arrPos[j], _arrVel[j]) = BodyStateVectorsAt(destination, ArrivalTime(j));
         }
 
         WorkerState = BackgroundWorkerState.Working;
@@ -119,10 +121,28 @@ public class Solver
         _backgroundWorker.RunWorkerAsync();
     }
 
-    private static (V3, V3) BodyStateVectorsAt(Orbit orbit, double time) =>
-        Maths.StateVectorsFromKeplerian(
-            orbit.referenceBody.gravParameter, orbit.semiLatusRectum, orbit.eccentricity, Deg2Rad(orbit.inclination),
+    private (V3, V3) BodyStateVectorsAt(Endpoint body, double time)
+    {
+        var orbit = body.Orbit;
+        var mu = orbit.referenceBody.gravParameter;
+        if (_hasPrincipia)
+        {
+            // For increased accuracy with Principia: the 'orbit' of a CB is the osculating orbit at the time when the
+            // plot is generated. This is inaccurate for a number of reasons (third-body perturbations mostly), but the
+            // most significant is in many cases the fact that stock only takes the μ of the parent body into account;
+            // when Principia is installed, we want to make sure we use the μ of both bodies.
+
+            // Ideally, we'd want to ask Principia directly for the position of the bodies at the future time. That
+            // would however require support from Principia.
+
+            // ReSharper disable once Unity.NoNullPropagation
+            mu += body.Celestial?.gravParameter ?? 0.0;
+        }
+
+        return Maths.StateVectorsFromKeplerian(
+            mu, orbit.semiLatusRectum, orbit.eccentricity, Deg2Rad(orbit.inclination),
             Deg2Rad(orbit.LAN), Deg2Rad(orbit.argumentOfPeriapsis), orbit.TrueAnomalyAtUT(time));
+    }
 
     internal (double, double) TimesFor((int i, int j) t) => TimesFor(t.i, t.j);
 
@@ -265,8 +285,8 @@ Total Δv: {TotalΔv.ToSI()}m/s";
     {
         if (tArr <= tDep) { return new TransferDetails { IsValid = false }; }
 
-        var (depPos, depCbVel) = BodyStateVectorsAt(_origin.Orbit, tDep);
-        var (arrPos, arrCbVel) = BodyStateVectorsAt(_destination.Orbit, tArr);
+        var (depPos, depCbVel) = BodyStateVectorsAt(_origin, tDep);
+        var (arrPos, arrCbVel) = BodyStateVectorsAt(_destination, tArr);
         var timeOfFlight = tArr - tDep;
         var (depVel, arrVel) = Gooding.Solve(
             _origin.Orbit.referenceBody.gravParameter, depPos, depCbVel, arrPos, timeOfFlight, 0);
@@ -288,7 +308,7 @@ Total Δv: {TotalΔv.ToSI()}m/s";
             : Math.Sqrt(arrC3);
         if (double.IsNaN(depΔv) || double.IsNaN(arrΔv)) { return new TransferDetails { IsValid = false }; }
 
-        var (originPosAtArrival, _) = BodyStateVectorsAt(_origin.Orbit, tArr);
+        var (originPosAtArrival, _) = BodyStateVectorsAt(_origin, tArr);
         var arrDistance = (originPosAtArrival - arrPos).magnitude;
 
         var depAsySpherical = depVInf.cart2sph;
