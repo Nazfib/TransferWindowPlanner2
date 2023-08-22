@@ -9,6 +9,7 @@ namespace TransferWindowPlanner2
 {
 using static MoreMaths;
 using static GuiUtils;
+using Solver;
 
 [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
 public class MainWindow : MonoBehaviour
@@ -104,12 +105,13 @@ public class MainWindow : MonoBehaviour
     private DoubleInput _plotMargin = new DoubleInput(2.0, 1.0);
 
     private (int, int) _selectedTransfer;
-    private Solver.TransferDetails _transferDetails;
+    private TransferDetails _transferDetails;
 
     private readonly List<string> _errors = new List<string>();
 
     private bool _hasPrincipia;
-    private Solver _solver = null!; // Initialized in Awake()
+    private Solver.Solver _solver = null!; // Initialized in Awake()
+    private bool _plotIsUpdating;
 
     private MapAngleRenderer? _ejectAngleRenderer;
     private ParkingOrbitRendererHack? _parkingOrbitRenderer;
@@ -126,7 +128,7 @@ public class MainWindow : MonoBehaviour
         _hasPrincipia =
             AssemblyLoader.loadedAssemblies.Any(a => a.assembly.GetName().Name == "principia.ksp_plugin_adapter");
         Debug.Log("[TWP2] Detected Principia");
-        _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
+        _solver = new Solver.Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
         ClearTexture(_plotDeparture);
         ClearTexture(_plotArrival);
@@ -403,7 +405,7 @@ public class MainWindow : MonoBehaviour
         GUILayout.FlexibleSpace();
 
         if (GUILayout.Button("Reset times")) { ResetTimes(); }
-        using (new GuiEnabled(_errors.Count == 0 && _solver.WorkerState is Solver.BackgroundWorkerState.Idle))
+        using (new GuiEnabled(_errors.Count == 0 && !_solver.IsRunning()))
         {
             if (GUILayout.Button(new GUIContent("Plot it!", string.Join("\n", _errors)))) { GeneratePlots(); }
         }
@@ -413,7 +415,7 @@ public class MainWindow : MonoBehaviour
 
     private void ShowPlot()
     {
-        if (_solver.WorkerState is Solver.BackgroundWorkerState.Done) { OnSolverDone(); }
+        if (_plotIsUpdating && _solver.ResultReady) { OnSolverDone(); }
 
         using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
         {
@@ -583,11 +585,12 @@ public class MainWindow : MonoBehaviour
 
     private void GeneratePlots()
     {
-        if (!(_solver.WorkerState is Solver.BackgroundWorkerState.Idle))
+        if (_solver.IsRunning())
         {
             Debug.LogError($"Solver is already working!");
             return;
         }
+        _plotIsUpdating = true;
 
         _solver.GeneratePorkchop(
             DepartureBody, ArrivalBody,
@@ -606,7 +609,7 @@ public class MainWindow : MonoBehaviour
         _plotIsDrawn = true;
 
         // Reset it for the next time
-        _solver.WorkerState = Solver.BackgroundWorkerState.Idle;
+        _plotIsUpdating = false;
     }
 
     private void UpdateTransferDetails((int, int) point)
