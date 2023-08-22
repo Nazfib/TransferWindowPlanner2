@@ -112,7 +112,7 @@ public class MainWindow : MonoBehaviour
     private Solver _solver = null!; // Initialized in Awake()
 
     private MapAngleRenderer? _ejectAngleRenderer;
-    private ParkingOrbitRenderer? _parkingOrbitRenderer;
+    private ParkingOrbitRendererHack? _parkingOrbitRenderer;
     private bool _showEjectAngle;
     private bool _showParkingOrbit;
 
@@ -625,7 +625,7 @@ public class MainWindow : MonoBehaviour
         if (!_transferDetails.IsValid) { return; }
         if (!_transferDetails.Origin.IsCelestial) { return; }
 
-        _parkingOrbitRenderer = ParkingOrbitRenderer.Setup(
+        _parkingOrbitRenderer = ParkingOrbitRendererHack.Setup(
             _transferDetails.Origin.Celestial!,
             _transferDetails.DeparturePeriapsis,
             Rad2Deg(_transferDetails.DepartureInclination),
