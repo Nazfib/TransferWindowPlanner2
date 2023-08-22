@@ -3,10 +3,11 @@ using MechJebLib.Primitives;
 using MechJebLib.Utils;
 using static System.Math;
 using static MechJebLib.Utils.Statics;
-using static TransferWindowPlanner2.MoreMaths;
 
 namespace TransferWindowPlanner2.Solver
 {
+using static MoreMaths;
+
 public struct TransferDetails
 {
     public bool IsValid;

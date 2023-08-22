@@ -1,7 +1,7 @@
 using System;
 using UnityEngine;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI.Rendering
 {
 using static RenderUtils;
 
@@ -51,7 +51,7 @@ public class MapAngleRenderer : MonoBehaviour
 
     private void Start()
     {
-        if (!GuiUtils.CurrentSceneHasMapView())
+        if (!CurrentSceneHasMapView())
         {
             enabled = false;
             return;
@@ -115,7 +115,7 @@ public class MapAngleRenderer : MonoBehaviour
 
     internal void OnPreCull()
     {
-        if (!GuiUtils.CurrentSceneHasMapView()) { return; }
+        if (!CurrentSceneHasMapView()) { return; }
 
         if (BodyOrigin == null) { return; }
 

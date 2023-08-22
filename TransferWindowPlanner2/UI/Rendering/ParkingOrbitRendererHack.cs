@@ -1,6 +1,4 @@
-using Contracts;
-
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI.Rendering
 {
 public class ParkingOrbitRendererHack
 {
@@ -24,7 +22,7 @@ public class ParkingOrbitRendererHack
         // So, the full workaround is this: provide a default-initialized Contract to the Setup method, then immediately
         // set it to null before the caption update methods can make use of it.
         var orbit = new Orbit(inc, 0, cb.Radius + alt, lan, 0, 0, 0, cb);
-        var renderer = ContractOrbitRenderer.Setup(new Contract(), orbit, activedraw);
+        var renderer = ContractOrbitRenderer.Setup(new Contracts.Contract(), orbit, activedraw);
         renderer.contract = null;
         return new ParkingOrbitRendererHack(renderer);
     }

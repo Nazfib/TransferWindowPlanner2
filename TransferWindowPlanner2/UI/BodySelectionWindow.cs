@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
+using TransferWindowPlanner2.Solver;
 using UnityEngine;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI
 {
 using static GuiUtils;
 

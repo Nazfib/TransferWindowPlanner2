@@ -3,7 +3,7 @@ using MechJebLib.Primitives;
 using static MechJebLib.Core.Maths;
 using static MechJebLib.Utils.Statics;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.Solver
 {
 /// <summary>
 /// Some more math functions that don't exist in MechJebLib.

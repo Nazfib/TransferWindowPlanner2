@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using KSP.Localization;
 using UnityEngine;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI
 {
 public static class GuiUtils
 {
@@ -127,10 +127,6 @@ public static class GuiUtils
             return false;
         }
     }
-
-    public static bool CurrentSceneHasMapView() =>
-        HighLogic.LoadedScene is GameScenes.FLIGHT
-        || HighLogic.LoadedScene is GameScenes.TRACKSTATION;
 
     public readonly struct GuiEnabled : IDisposable
     {

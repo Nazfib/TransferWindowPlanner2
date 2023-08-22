@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI.Rendering
 {
 public static class RenderUtils
 {
@@ -51,5 +51,9 @@ public static class RenderUtils
         line.endWidth = 5f / 1000f * Vector3.Distance(camPos, startPos);
         line.enabled = true;
     }
+
+    public static bool CurrentSceneHasMapView() =>
+        HighLogic.LoadedScene is GameScenes.FLIGHT
+        || HighLogic.LoadedScene is GameScenes.TRACKSTATION;
 }
 }

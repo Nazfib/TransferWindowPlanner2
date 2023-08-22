@@ -1,7 +1,7 @@
 using KSP.UI;
 using KSP.UI.Screens;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI
 {
 public class TWPAlarm : AlarmTypeBase
 {

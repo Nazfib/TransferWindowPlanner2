@@ -1,6 +1,6 @@
 using UnityEngine;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI
 {
 public static class ColorMap
 {

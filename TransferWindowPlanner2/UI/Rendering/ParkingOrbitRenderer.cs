@@ -1,7 +1,7 @@
 using KSP.Localization;
 using KSP.UI.Screens.Mapview;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI.Rendering
 {
 public class ParkingOrbitRenderer : OrbitTargetRenderer
 {

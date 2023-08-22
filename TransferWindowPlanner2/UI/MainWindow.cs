@@ -2,14 +2,15 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using KSP.UI.Screens;
-using static MechJebLib.Utils.Statics;
 using UnityEngine;
+using static MechJebLib.Utils.Statics;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.UI
 {
-using static MoreMaths;
-using static GuiUtils;
 using Solver;
+using Rendering;
+using static Solver.MoreMaths;
+using static GuiUtils;
 
 [KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
 public class MainWindow : MonoBehaviour
@@ -110,7 +111,7 @@ public class MainWindow : MonoBehaviour
     private readonly List<string> _errors = new List<string>();
 
     private bool _hasPrincipia;
-    private Solver.Solver _solver = null!; // Initialized in Awake()
+    private Solver _solver = null!; // Initialized in Awake()
     private bool _plotIsUpdating;
 
     private MapAngleRenderer? _ejectAngleRenderer;
@@ -121,14 +122,14 @@ public class MainWindow : MonoBehaviour
     protected void Awake()
     {
         GameEvents.onGUIApplicationLauncherReady.Add(OnGuiAppLauncherReady);
-        if (CurrentSceneHasMapView())
+        if (RenderUtils.CurrentSceneHasMapView())
         {
             _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
         }
         _hasPrincipia =
             AssemblyLoader.loadedAssemblies.Any(a => a.assembly.GetName().Name == "principia.ksp_plugin_adapter");
         Debug.Log("[TWP2] Detected Principia");
-        _solver = new Solver.Solver(PlotWidth, PlotHeight, _hasPrincipia);
+        _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
         ClearTexture(_plotDeparture);
         ClearTexture(_plotArrival);
@@ -555,7 +556,7 @@ public class MainWindow : MonoBehaviour
             if (GUILayout.Button("Create alarm")) { CreateAlarm(); }
             if (KACWrapper.APIReady && GUILayout.Button("Create KAC alarm")) { CreateKACAlarm(); }
 
-            if (CurrentSceneHasMapView())
+            if (RenderUtils.CurrentSceneHasMapView())
             {
                 using (new GuiEnabled(_transferDetails.IsValid && _transferDetails.Origin.IsCelestial))
                 {
@@ -570,7 +571,7 @@ public class MainWindow : MonoBehaviour
 
     private void Update()
     {
-        if (!CurrentSceneHasMapView()) { return; }
+        if (!RenderUtils.CurrentSceneHasMapView()) { return; }
         if (!_transferDetails.IsValid || !_transferDetails.Origin.IsCelestial)
         {
             _showParkingOrbit = _showEjectAngle = false;

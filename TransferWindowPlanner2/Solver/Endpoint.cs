@@ -1,6 +1,6 @@
 using System;
 
-namespace TransferWindowPlanner2
+namespace TransferWindowPlanner2.Solver
 {
 public readonly struct Endpoint
     : IEquatable<Endpoint>
