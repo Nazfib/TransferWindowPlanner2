@@ -11,7 +11,7 @@ cd "release/"
 cp -r "../GameData" "TransferWindowPlanner2/"
 cp "../TransferWindowPlanner2/bin/Release/net48/TransferWindowPlanner2.dll" "TransferWindowPlanner2/GameData/TransferWindowPlanner2"
 cp "../LICENSE" "../LICENSE.TransferWindowPlanner" "../LICENSE.MechJebLib" "../LICENSE.ClickThroughBlocker" "TransferWindowPlanner2/"
-cp "../README.release.md" "TransferWindowPlanner2/README.md"
+cp "../README.md" "TransferWindowPlanner2/README.md"
 
-zip -r "TransferWindowPlanner2_v${VERSION}.zip" "TransferWindowPlanner2"
+zip -FS -r "TransferWindowPlanner2_v${VERSION}.zip" "TransferWindowPlanner2"
 
