@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using KSP.UI.Screens;
 using UnityEngine;
+using ClickThroughFix;
 using static MechJebLib.Utils.Statics;
 
 namespace TransferWindowPlanner2.UI
@@ -177,12 +178,13 @@ public class MainWindow : MonoBehaviour
         GUI.skin = HighLogic.Skin;
         if (!_showMainWindow) { return; }
 
-        WinPos = GUILayout.Window(GetHashCode(), WinPos, WindowGUI, ModName);
+        WinPos = ClickThruBlocker.GUILayoutWindow(GetHashCode(), WinPos, WindowGUI, ModName);
 
         if (!string.IsNullOrEmpty(_tooltip))
         {
             var pos = Event.current.mousePosition + new Vector2(25, -5);
-            GUILayout.Window(GetHashCode() + 1, new Rect(pos, Vector2.zero), TooltipWindowGUI, "", GUIStyle.none);
+            ClickThruBlocker.GUILayoutWindow(
+                GetHashCode() + 1, new Rect(pos, Vector2.zero), TooltipWindowGUI, "", GUIStyle.none);
         }
     }
 

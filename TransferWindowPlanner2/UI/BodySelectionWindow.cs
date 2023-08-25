@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using ClickThroughFix;
 using TransferWindowPlanner2.Solver;
 using UnityEngine;
 
@@ -182,7 +183,7 @@ public class BodySelectionWindow : MonoBehaviour
             Width,
             _mainWindow.WinPos.height
         );
-        GUILayout.Window(
+        ClickThruBlocker.GUILayoutWindow(
             GetHashCode(), winPos, WindowGUI, GetTitle(),
             GUILayout.ExpandWidth(false), GUILayout.ExpandHeight(false));
     }

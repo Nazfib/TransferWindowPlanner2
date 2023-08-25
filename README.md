@@ -1,7 +1,8 @@
 # Transfer Window Planner 2
 
-This is a completely new transfer window planning mod for KSP. It is heavily
-inspired by TriggerAu's original TWP.
+This is a new transfer window planning mod for KSP, based on the mathematical
+routines in [MechJebLib](https://github.com/MuMech/MechJeb2). It is heavily
+inspired by TriggerAu's [original TWP](https://forum.kerbalspaceprogram.com/topic/84005--).
 
 ![Screenshot of the in-game transfer planning window](/artwork/twp2-preview.png)
 
@@ -17,7 +18,7 @@ inspired by TriggerAu's original TWP.
 - [ ] Persistence: remember input settings and plot between scene switches
   - Add a way to restore a plot from a KAC/Alarm Clock alarm?
 - [ ] Add localization support to all strings
-- [ ] Add Click-Through-Blocker support
+- [x] Add Click-Through-Blocker support
 
 ## Maths
 
@@ -61,4 +62,7 @@ TWP2 uses no code from MechJeb other than that in MechJebLib.
 
 The color map used in the plot is CET-L20 by Peter Kosevi. It is available at
 [colorcet.com](https://colorcet.com) under a CC-BY-4.0 license.
+
+This mod uses ClickThroughBlocker. ClickThroughBlocker is used under the terms
+of the [GNU Lesser General Public License, Version 3](/LICENSE.ClickThroughBlocker)
 

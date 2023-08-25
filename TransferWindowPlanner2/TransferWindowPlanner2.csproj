@@ -4,6 +4,8 @@
         <TargetFramework>net48</TargetFramework>
         <LangVersion>8.0</LangVersion>
         <Nullable>enable</Nullable>
+        <Version>0.2.0</Version>
+        <Authors>Nazfib</Authors>
     </PropertyGroup>
 
     <ItemGroup>
@@ -14,7 +16,6 @@
     </ItemGroup>
 
     <PropertyGroup>
-        <Version>0.1.0</Version>
         <KSPDir>..\..\_Versions\1.12.5</KSPDir>
         <AssemblySearchPaths>$(KSPDir)\KSP_Data\Managed;$(AssemblySearchPaths)</AssemblySearchPaths>
     </PropertyGroup>
@@ -33,6 +34,16 @@
         <Reference Include="UnityEngine.CoreModule" />
         <Reference Include="UnityEngine.IMGUIModule" />
         <Reference Include="UnityEngine.TextRenderingModule" />
+        <Reference Include="ClickThroughBlocker">
+            <HintPath>$(KSPDir)\GameData\000_ClickThroughBlocker\Plugins\ClickThroughBlocker.dll</HintPath>
+        </Reference>
+        <AssemblyAttribute Include="KSPAssemblyDependency">
+            <_Parameter1>ClickThroughBlocker</_Parameter1>
+            <_Parameter2>1</_Parameter2>
+            <_Parameter2_IsLiteral>true</_Parameter2_IsLiteral>
+            <_Parameter3>0</_Parameter3>
+            <_Parameter3_IsLiteral>true</_Parameter3_IsLiteral>
+        </AssemblyAttribute>
     </ItemGroup>
 
     <ItemGroup>
