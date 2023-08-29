@@ -15,9 +15,6 @@
 
 ## Maths
 
-- [ ] Check how hyperbolic starting/ending orbits are handled
-  - Mostly relevant for rendez-vous with comets on a hyperbolic trajectory
-  - Check if the math works correctly (mostly MJL's state vector calculation)
 - [ ] Disallow setting a departure or arrival time after the next SOI crossing
   - This should the `Orbit.EndUT` field; but does it work for un-focussed
     vessels?
@@ -34,5 +31,6 @@ over the course of a month.
 - [ ] Check how the reference frames between Principia, Unity and KSP line up
   - For example, the "arrival asymptote direction" angles are very wrong;
     probably, when creating a plot when the current central body is _not_ Earth
-    will cause inclination/lan/asymptote angles to be incorrect as well.
+    will cause departure inclination/lan/asymptote angles to be incorrect as
+    well.
 
