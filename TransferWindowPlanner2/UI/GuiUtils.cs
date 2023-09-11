@@ -144,8 +144,6 @@ public static class GuiUtils
         }
     }
 
-    public static readonly Color Orange = new Color(1.0f, 0.65f, 0.0f);
-
     public static readonly GUIStyle BoxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
 
     public static readonly GUIStyle BoxTitleStyle = new GUIStyle(HighLogic.Skin.label)
@@ -168,12 +166,12 @@ public static class GuiUtils
         { alignment = TextAnchor.MiddleRight };
 
     public static readonly GUIStyle InvalidInputStyle = new GUIStyle(InputStyle)
-        { normal = { textColor = Orange } };
+        { normal = { textColor = XKCDColors.KSPNotSoGoodOrange } };
 
     public static readonly GUIStyle ButtonStyle = new GUIStyle(HighLogic.Skin.button);
 
     public static readonly GUIStyle InvalidButtonStyle = new GUIStyle(ButtonStyle)
-        { normal = { textColor = Orange } };
+        { normal = { textColor = XKCDColors.KSPNotSoGoodOrange } };
 
     public static readonly GUIStyle ResultLabelStyle = new GUIStyle(HighLogic.Skin.label)
         { alignment = TextAnchor.MiddleLeft };
