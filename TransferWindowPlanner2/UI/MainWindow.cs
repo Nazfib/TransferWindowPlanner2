@@ -123,6 +123,7 @@ public class MainWindow : MonoBehaviour
     protected void Awake()
     {
         GameEvents.onGUIApplicationLauncherReady.Add(OnGuiAppLauncherReady);
+        GameEvents.onGameSceneLoadRequested.Add(OnSceneChange);
         if (RenderUtils.CurrentSceneHasMapView())
         {
             _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
@@ -168,6 +169,7 @@ public class MainWindow : MonoBehaviour
     public void OnDestroy()
     {
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
+        GameEvents.onGameSceneLoadRequested.Remove(OnSceneChange);
         Destroy(_bodySelectionWindow);
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
         if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
@@ -215,7 +217,6 @@ public class MainWindow : MonoBehaviour
                 null, null, null, null,
                 ApplicationLauncher.AppScenes.ALWAYS & ~ApplicationLauncher.AppScenes.MAINMENU,
                 GameDatabase.Instance.GetTexture($"{Icon}", false));
-            GameEvents.onGameSceneLoadRequested.Add(OnSceneChange);
         }
         catch (Exception ex)
         {
