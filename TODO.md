@@ -12,6 +12,7 @@
   - Add a way to restore a plot from a KAC/Alarm Clock alarm?
 - [ ] Add localization support to all strings
 - [x] Add Click-Through-Blocker support
+- [ ] Make KAC alarm margin configurable
 
 ## Maths
 
@@ -29,8 +30,7 @@ over the course of a month.
 
 - [ ] Try using the `CelestialGetPosition` API from Principia. 
 - [ ] Check how the reference frames between Principia, Unity and KSP line up
-  - For example, the "arrival asymptote direction" angles are very wrong;
-    probably, when creating a plot when the current central body is _not_ Earth
-    will cause departure inclination/lan/asymptote angles to be incorrect as
-    well.
+  - Nathan has found a way to correctly find the inclination, and implemented
+    it in ROUtils. See about either copying it, or adding a dependency (if
+    there's more useful stuff in there)
 
