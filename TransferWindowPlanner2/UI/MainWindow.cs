@@ -130,7 +130,7 @@ public class MainWindow : MonoBehaviour
         }
         _hasPrincipia =
             AssemblyLoader.loadedAssemblies.Any(a => a.assembly.GetName().Name == "principia.ksp_plugin_adapter");
-        Debug.Log("[TWP2] Detected Principia");
+        if (_hasPrincipia) { Debug.Log("[TWP2] Detected Principia"); }
         _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
         ClearTexture(_plotDeparture);
