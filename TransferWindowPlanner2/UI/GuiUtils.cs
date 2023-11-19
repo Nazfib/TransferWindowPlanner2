@@ -97,9 +97,11 @@ public static class GuiUtils
 
         private static bool TryParseDate(string text, out double ut)
         {
-            // Stock format: Ynn, Dnn
             if (_stockDateRegex is null)
             {
+                // Stock's default datetime formatter always formats as "Ynn, Dnn" (where the letters Y and D may be
+                // localized, and nn are integers). This accepts a slightly more free format, namely that the comma and
+                // space between the year and day are optional. Leading and trialing whitespace is not accepted, though.
                 var year = Localizer.Format("#autoLOC_6002344");
                 var day = Localizer.Format("#autoLOC_6002345");
                 _stockDateRegex = new Regex(
@@ -111,13 +113,22 @@ public static class GuiUtils
             {
                 var year = int.Parse(match.Groups[1].Value);
                 var day = int.Parse(match.Groups[2].Value);
+                if (year == 0 || day == 0)
+                {
+                    // Matches the regex, but it is not a valid date. We can early-exit, since this can never be a valid
+                    // date for the RSS time format either.
+                    ut = 0.0;
+                    return false;
+                }
                 ut = (year - 1) * KSPUtil.dateTimeFormatter.Year + (day - 1) * KSPUtil.dateTimeFormatter.Day;
                 return true;
             }
 
-            // RSSTimeFormatter: yyyy-MM-dd
-            // This is a valid date format string for all cultures.
-            if (DateTime.TryParse(text, out var result))
+            // RSSTimeFormatter: printed as yyyy-MM-dd
+            // When parsing, allow omitting the leading zero in the day and month values.
+            if (DateTime.TryParseExact(
+                    text, "yyyy-M-d", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var result))
             {
                 var epoch = new DateTime(1951, 1, 1);
                 ut = (result - epoch).TotalSeconds;
