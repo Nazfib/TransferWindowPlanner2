@@ -57,24 +57,17 @@ public static class GuiUtils
 
     public struct DateInput
     {
+        // Note: printing the time using KSPUtil.PrintDateCompact may construct a new DefaultDateTimeFormatter. I'm
+        // not fully sure whether this is safe to do from a class constructor, so just to be safe we initialize the
+        // DateInput in an invalid state.
+        // For this we rely on the default value of a boolean field, which is false
         public bool Valid { get; private set; }
 
         private double _ut;
         private string _text;
 
-        private readonly string _stockDateRegex;
-
-        public DateInput(double ut)
-        {
-            _ut = ut;
-            _text = KSPUtil.PrintDateCompact(ut, false);
-            Valid = true;
-
-            // Ynn, Dnn
-            var year = Localizer.Format("#autoLOC_6002344");
-            var day = Localizer.Format("#autoLOC_6002345");
-            _stockDateRegex = $@"^{year}(\d+),?\s*{day}(\d+)$";
-        }
+        // Lazily initialized in TryParseDate
+        private static Regex? _stockDateRegex;
 
         public double Ut
         {
@@ -102,10 +95,18 @@ public static class GuiUtils
             }
         }
 
-        private bool TryParseDate(string text, out double ut)
+        private static bool TryParseDate(string text, out double ut)
         {
             // Stock format: Ynn, Dnn
-            var match = Regex.Match(text, _stockDateRegex, RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            if (_stockDateRegex is null)
+            {
+                var year = Localizer.Format("#autoLOC_6002344");
+                var day = Localizer.Format("#autoLOC_6002345");
+                _stockDateRegex = new Regex(
+                    $@"^{year}(\d+),?\s*{day}(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+            }
+
+            var match = _stockDateRegex.Match(text);
             if (match.Success)
             {
                 var year = int.Parse(match.Groups[1].Value);
@@ -144,39 +145,44 @@ public static class GuiUtils
         }
     }
 
-    public static readonly GUIStyle BoxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
-
-    public static readonly GUIStyle BoxTitleStyle = new GUIStyle(HighLogic.Skin.label)
+    public static void InitStyles()
     {
-        alignment = TextAnchor.MiddleCenter,
-        fontStyle = FontStyle.Bold,
-    };
+        BoxStyle = new GUIStyle(HighLogic.Skin.box) { alignment = TextAnchor.UpperLeft };
+        BoxTitleStyle = new GUIStyle(HighLogic.Skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontStyle = FontStyle.Bold,
+        };
+        PlotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
+        TooltipStyle = new GUIStyle(HighLogic.Skin.window)
+        {
+            alignment = TextAnchor.UpperLeft,
+            fontStyle = FontStyle.Normal,
+            wordWrap = false,
+            padding = { bottom = -10, top = 28, left = 8, right = 6 },
+        };
+        InputStyle = new GUIStyle(HighLogic.Skin.textField)
+            { alignment = TextAnchor.MiddleRight };
+        InvalidInputStyle = new GUIStyle(InputStyle)
+            { normal = { textColor = XKCDColors.KSPNotSoGoodOrange } };
+        ButtonStyle = new GUIStyle(HighLogic.Skin.button);
+        InvalidButtonStyle = new GUIStyle(ButtonStyle)
+            { normal = { textColor = XKCDColors.KSPNotSoGoodOrange } };
+        ResultLabelStyle = new GUIStyle(HighLogic.Skin.label)
+            { alignment = TextAnchor.MiddleLeft };
+        ResultValueStyle = new GUIStyle(HighLogic.Skin.label)
+            { alignment = TextAnchor.MiddleRight };
+    }
 
-    public static readonly GUIStyle PlotBoxStyle = new GUIStyle { alignment = TextAnchor.MiddleCenter };
-
-    public static readonly GUIStyle TooltipStyle = new GUIStyle(HighLogic.Skin.window)
-    {
-        alignment = TextAnchor.UpperLeft,
-        fontStyle = FontStyle.Normal,
-        wordWrap = false,
-        padding = { bottom = -10, top = 28, left = 8, right = 6 },
-    };
-
-    public static readonly GUIStyle InputStyle = new GUIStyle(HighLogic.Skin.textField)
-        { alignment = TextAnchor.MiddleRight };
-
-    public static readonly GUIStyle InvalidInputStyle = new GUIStyle(InputStyle)
-        { normal = { textColor = XKCDColors.KSPNotSoGoodOrange } };
-
-    public static readonly GUIStyle ButtonStyle = new GUIStyle(HighLogic.Skin.button);
-
-    public static readonly GUIStyle InvalidButtonStyle = new GUIStyle(ButtonStyle)
-        { normal = { textColor = XKCDColors.KSPNotSoGoodOrange } };
-
-    public static readonly GUIStyle ResultLabelStyle = new GUIStyle(HighLogic.Skin.label)
-        { alignment = TextAnchor.MiddleLeft };
-
-    public static readonly GUIStyle ResultValueStyle = new GUIStyle(HighLogic.Skin.label)
-        { alignment = TextAnchor.MiddleRight };
+    public static GUIStyle? BoxStyle;
+    public static GUIStyle? BoxTitleStyle;
+    public static GUIStyle? PlotBoxStyle;
+    public static GUIStyle? TooltipStyle;
+    public static GUIStyle? InputStyle;
+    public static GUIStyle? InvalidInputStyle;
+    public static GUIStyle? ButtonStyle;
+    public static GUIStyle? InvalidButtonStyle;
+    public static GUIStyle? ResultLabelStyle;
+    public static GUIStyle? ResultValueStyle;
 }
 }

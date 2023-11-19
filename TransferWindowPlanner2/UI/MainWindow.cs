@@ -20,16 +20,18 @@ public class MainWindow : MonoBehaviour
     private const string Icon = "TransferWindowPlanner2/icon";
     private const string Marker = "TransferWindowPlanner2/marker";
     private static readonly Vector2 MarkerSize = new Vector2(16, 16);
-    private Texture2D _markerTex = null!;
+    private Texture2D _markerTex = null!; // Initialized in Awake()
 
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
     private const int WindowHeight = 600;
 
-    private readonly Texture2D _plotArrival = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
-    private readonly Texture2D _plotDeparture = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
-    private readonly Texture2D _plotTotal = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+    // Initialized in Awake()
+    private Texture2D _plotArrival = null!;
+    private Texture2D _plotDeparture = null!;
+    private Texture2D _plotTotal = null!;
+
     private bool _plotIsDrawn = false;
 
     private ApplicationLauncherButton? _button;
@@ -46,7 +48,7 @@ public class MainWindow : MonoBehaviour
     private Rect _plotPosition;
     private string _tooltip = "";
 
-    // Input fields
+    // Input fields; initialized in Start()
     private BodySelectionWindow _bodySelectionWindow = null!;
     private CelestialBody _centralBody = null!;
     private Endpoint _departureBody;
@@ -99,10 +101,12 @@ public class MainWindow : MonoBehaviour
     private DoubleInput _arrivalAltitude = new DoubleInput(100.0, 0.0);
     private bool _circularize = true;
 
-    private DateInput _earliestDeparture = new DateInput(0.0);
-    private DateInput _latestDeparture = new DateInput(0.0);
-    private DateInput _earliestArrival = new DateInput(0.0);
-    private DateInput _latestArrival = new DateInput(0.0);
+    // These are initialized into a default invalid state. During Start(), ResetTimes() is called which will then
+    // reset them to a valid state. This is done to avoid calling any KSP/Unity APIs during class construction.
+    private DateInput _earliestDeparture = new DateInput();
+    private DateInput _latestDeparture = new DateInput();
+    private DateInput _earliestArrival = new DateInput();
+    private DateInput _latestArrival = new DateInput();
 
     private DoubleInput _plotMargin = new DoubleInput(2.0, 1.0);
 
@@ -133,11 +137,10 @@ public class MainWindow : MonoBehaviour
         if (_hasPrincipia) { Debug.Log("[TWP2] Detected Principia"); }
         _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
-        ClearTexture(_plotDeparture);
-        ClearTexture(_plotArrival);
-        ClearTexture(_plotTotal);
-
         _markerTex = GameDatabase.Instance.GetTexture(Marker, false);
+        _plotArrival = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+        _plotDeparture = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
+        _plotTotal = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
     }
 
     protected void Start()
@@ -164,6 +167,14 @@ public class MainWindow : MonoBehaviour
 
         _bodySelectionWindow = BodySelectionWindow.Setup(this);
         ResetTimes();
+
+        // From the Unity docs: Do not assume that the texture will be created and available in Awake. All texture
+        // uploads are synchronized on the Main thread at Start. Perform texture operations in Start.
+        ClearTexture(_plotDeparture);
+        ClearTexture(_plotArrival);
+        ClearTexture(_plotTotal);
+
+        InitStyles();
     }
 
     public void OnDestroy()
@@ -173,6 +184,10 @@ public class MainWindow : MonoBehaviour
         Destroy(_bodySelectionWindow);
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
         if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
+
+        Destroy(_plotArrival);
+        Destroy(_plotDeparture);
+        Destroy(_plotTotal);
     }
 
     public void OnGUI()
@@ -189,7 +204,6 @@ public class MainWindow : MonoBehaviour
                 GetHashCode() + 1, new Rect(pos, Vector2.zero), TooltipWindowGUI, "", GUIStyle.none);
         }
     }
-
 
     private void ShowWindow()
     {
