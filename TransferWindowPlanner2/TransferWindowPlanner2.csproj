@@ -47,12 +47,21 @@
     </ItemGroup>
 
     <ItemGroup>
-        <Compile Remove="MechJebLib\Control\**" />
-        <Compile Remove="MechJebLib\PVG\**" />
-        <Compile Remove="MechJebLib\Maneuvers\**" />
-        <Compile Remove="MechJebLib\Simulations\**" />
-        <Compile Remove="MechJebLib\Suicide.cs" />
-        <Compile Remove="MechJebLib\SuicideBuilder.cs" />
+        <Compile Remove="MechJebLib\**" />
+        <Compile Include="MechJebLib\FunctionImpls\RealSingleImpulseHyperbolicBurn.cs" />
+        <Compile Include="MechJebLib\Functions\Angles.cs" />
+        <Compile Include="MechJebLib\Functions\Astro.cs" />
+        <Compile Include="MechJebLib\Lambert\**" />
+        <Compile Include="MechJebLib\Minimization\BrentMin.cs" />
+        <Compile Include="MechJebLib\Primitives\Dual.cs" />
+        <Compile Include="MechJebLib\Primitives\DualV3.cs" />
+        <Compile Include="MechJebLib\Primitives\M3.cs" />
+        <Compile Include="MechJebLib\Primitives\Q3.cs" />
+        <Compile Include="MechJebLib\Primitives\V3.cs" />
+        <Compile Include="MechJebLib\Utils\BackgroundJob.cs" />
+        <Compile Include="MechJebLib\Utils\Check.cs" />
+        <Compile Include="MechJebLib\Utils\Logger.cs" />
+        <Compile Include="MechJebLib\Utils\Statics.cs" />
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">

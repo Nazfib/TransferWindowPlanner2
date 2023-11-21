@@ -4,6 +4,7 @@
 
 - [ ] Find a better name than TWP2
 - [ ] Move this to-do list to GitHub issues
+- [ ] Depend on MechJebLib directly, instead of including some files from it
 
 ## GUI
 

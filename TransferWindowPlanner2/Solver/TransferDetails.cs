@@ -1,7 +1,7 @@
-using MechJebLib.Core;
 using MechJebLib.Primitives;
 using MechJebLib.Utils;
 using static System.Math;
+using MechJebLib.Lambert;
 using static MechJebLib.Utils.Statics;
 
 namespace TransferWindowPlanner2.Solver

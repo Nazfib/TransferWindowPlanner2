@@ -1,8 +1,9 @@
 using System;
-using MechJebLib.Core;
+using MechJebLib.Lambert;
 using MechJebLib.Primitives;
 using MechJebLib.Utils;
 using static MechJebLib.Utils.Statics;
+using static MechJebLib.Functions.Astro;
 
 namespace TransferWindowPlanner2.Solver
 {
@@ -125,7 +126,7 @@ public partial class Solver : BackgroundJob<int>
             mu += body.Celestial?.gravParameter ?? 0.0;
         }
 
-        return Maths.StateVectorsFromKeplerian(
+        return StateVectorsFromKeplerian(
             mu, orbit.semiLatusRectum, orbit.eccentricity, Deg2Rad(orbit.inclination),
             Deg2Rad(orbit.LAN), Deg2Rad(orbit.argumentOfPeriapsis), orbit.TrueAnomalyAtUT(time));
     }

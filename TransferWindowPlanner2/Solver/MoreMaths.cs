@@ -1,6 +1,6 @@
 using System;
 using MechJebLib.Primitives;
-using static MechJebLib.Core.Maths;
+using static MechJebLib.Functions.Astro;
 using static MechJebLib.Utils.Statics;
 
 namespace TransferWindowPlanner2.Solver
