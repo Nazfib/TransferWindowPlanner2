@@ -4,6 +4,7 @@ using System.Linq;
 using KSP.UI.Screens;
 using UnityEngine;
 using ClickThroughFix;
+using MechJebLibBindings;
 using static MechJebLib.Utils.Statics;
 
 namespace TransferWindowPlanner2.UI
@@ -665,14 +666,9 @@ public class MainWindow : MonoBehaviour
         if (!_transferDetails.IsValid) { return; }
         if (!_transferDetails.Origin.IsCelestial) { return; }
         if (_ejectAngleRenderer == null) { return; }
-        var vInf = new Vector3d(
-            _transferDetails.DepartureVInf.x,
-            _transferDetails.DepartureVInf.y,
-            _transferDetails.DepartureVInf.z);
-        var peDir = new Vector3d(
-            _transferDetails.DeparturePeDirection.x,
-            _transferDetails.DeparturePeDirection.y,
-            _transferDetails.DeparturePeDirection.z);
+
+        var vInf = _transferDetails.DepartureVInf.ToVector3d();
+        var peDir = _transferDetails.DeparturePeDirection.ToVector3d();
 
         _ejectAngleRenderer.Draw(_transferDetails.Origin.Celestial!, vInf, peDir);
     }

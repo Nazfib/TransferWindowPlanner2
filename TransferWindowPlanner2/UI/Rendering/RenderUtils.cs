@@ -23,7 +23,7 @@ public static class RenderUtils
         return lineReturn;
     }
 
-    public static Vector3d VectorToUnityFrame(Vector3d v) => Planetarium.Rotation * v.xzy;
+    public static Vector3d VectorToUnityFrame(Vector3d v) => Planetarium.fetch.rotation * v.xzy;
 
     public static void DrawArc(
         LineRenderer line, Vector3d center, Vector3d start, Vector3d end, double scale, int arcPoints)

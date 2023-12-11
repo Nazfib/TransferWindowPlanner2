@@ -37,6 +37,12 @@
         <Reference Include="ClickThroughBlocker">
             <HintPath>$(KSPDir)\GameData\000_ClickThroughBlocker\Plugins\ClickThroughBlocker.dll</HintPath>
         </Reference>
+        <Reference Include="MechJebLib">
+            <HintPath>$(KSPDir)\GameData\MechJeb2\Plugins\MechJebLib.dll</HintPath>
+        </Reference>
+        <Reference Include="MechJebLibBindings">
+            <HintPath>$(KSPDir)\GameData\MechJeb2\Plugins\MechJebLibBindings.dll</HintPath>
+        </Reference>
         <AssemblyAttribute Include="KSPAssemblyDependency">
             <_Parameter1>ClickThroughBlocker</_Parameter1>
             <_Parameter2>1</_Parameter2>
@@ -44,24 +50,6 @@
             <_Parameter3>0</_Parameter3>
             <_Parameter3_IsLiteral>true</_Parameter3_IsLiteral>
         </AssemblyAttribute>
-    </ItemGroup>
-
-    <ItemGroup>
-        <Compile Remove="MechJebLib\**" />
-        <Compile Include="MechJebLib\FunctionImpls\RealSingleImpulseHyperbolicBurn.cs" />
-        <Compile Include="MechJebLib\Functions\Angles.cs" />
-        <Compile Include="MechJebLib\Functions\Astro.cs" />
-        <Compile Include="MechJebLib\Lambert\**" />
-        <Compile Include="MechJebLib\Minimization\BrentMin.cs" />
-        <Compile Include="MechJebLib\Primitives\Dual.cs" />
-        <Compile Include="MechJebLib\Primitives\DualV3.cs" />
-        <Compile Include="MechJebLib\Primitives\M3.cs" />
-        <Compile Include="MechJebLib\Primitives\Q3.cs" />
-        <Compile Include="MechJebLib\Primitives\V3.cs" />
-        <Compile Include="MechJebLib\Utils\BackgroundJob.cs" />
-        <Compile Include="MechJebLib\Utils\Check.cs" />
-        <Compile Include="MechJebLib\Utils\Logger.cs" />
-        <Compile Include="MechJebLib\Utils\Statics.cs" />
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">
