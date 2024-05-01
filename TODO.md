@@ -18,18 +18,16 @@
 ## Maths
 
 - [ ] Disallow setting a departure or arrival time after the next SOI crossing
+  of the origin or target
   - This should the `Orbit.EndUT` field; but does it work for un-focussed
     vessels?
 
-## Accuracy improvements when using Principia
+## Principia
 
-Investigate why burns with Principia always take ~50 to 100 m/s more than TWP
-predicts. My main hypothesis is that the initial/final positions of the planets
-are too inaccurate (based on the osculating orbit) to work properly; especially
-the Earth, which has a big Moon, might have a slight variation in it's velocity
-over the course of a month.
-
-- [ ] Try using the `CelestialGetPosition` API from Principia. 
+- [ ] ~~Try using the `CelestialGetPosition` API from Principia.~~ Update:
+  using an infinite SoI makes the Δv be exactly right (at least for the case
+  where the launch window is right now), so this doesn't seem to be needed. Can
+  revisit if longer-term predictions still turn out to be wrong.
 - [ ] Check how the reference frames between Principia, Unity and KSP line up
   - Nathan has found a way to correctly find the inclination, and implemented
     it in ROUtils. See about either copying it, or adding a dependency (if
