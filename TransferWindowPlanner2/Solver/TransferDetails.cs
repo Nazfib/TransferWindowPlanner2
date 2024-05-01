@@ -93,12 +93,17 @@ public partial class Solver
 
         var depΔv = _origin.IsCelestial
             ? ΔvFromC3(
-                _origin.Celestial!.gravParameter, _origin.Celestial!.sphereOfInfluence, depC3, _departurePeR, true)
+                _origin.Celestial!.gravParameter,
+                _hasPrincipia ? double.PositiveInfinity : _origin.Celestial!.sphereOfInfluence,
+                depC3,
+                _departurePeR, _departurePeR)
             : Sqrt(depC3);
         var arrΔv = _destination.IsCelestial
             ? ΔvFromC3(
-                _destination.Celestial!.gravParameter, _destination.Celestial!.sphereOfInfluence, arrC3, _arrivalPeR,
-                _circularize)
+                _destination.Celestial!.gravParameter,
+                _hasPrincipia ? double.PositiveInfinity : _destination.Celestial!.sphereOfInfluence,
+                arrC3,
+                _arrivalPeR, _circularize ? _arrivalPeR : _destination.Celestial!.sphereOfInfluence)
             : Sqrt(arrC3);
         if (double.IsNaN(depΔv) || double.IsNaN(arrΔv)) { return new TransferDetails { IsValid = false }; }
 

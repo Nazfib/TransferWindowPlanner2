@@ -177,7 +177,7 @@ public partial class Solver : BackgroundJob<int>
 
             var depC3 = (depVel - depCbVel).sqrMagnitude;
             var depΔv = DepΔv[i, j] = _gravParameterDeparture > 0.0
-                ? ΔvFromC3(_gravParameterDeparture, _soiDeparture, depC3, _departurePeR, true)
+                ? ΔvFromC3(_gravParameterDeparture, _soiDeparture, depC3, _departurePeR, _departurePeR)
                 : Math.Sqrt(depC3);
             if (depΔv < MinDepΔv)
             {
@@ -187,7 +187,8 @@ public partial class Solver : BackgroundJob<int>
 
             var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
             var arrΔv = ArrΔv[i, j] = _gravParameterArrival > 0.0
-                ? ΔvFromC3(_gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize)
+                ? ΔvFromC3(
+                    _gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize ? _arrivalPeR : _soiArrival)
                 : Math.Sqrt(arrC3);
             if (arrΔv < MinArrΔv)
             {

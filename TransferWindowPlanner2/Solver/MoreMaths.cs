@@ -27,11 +27,9 @@ public static class MoreMaths
     private static double PeriapsisVelocitySquared(double mu, double sphereOfInfluence, double c3, double periapsis) =>
         2 * mu / periapsis + c3 - 2 * mu / sphereOfInfluence;
 
-    public static double ΔvFromC3(double mu, double sphereOfInfluence, double c3, double periapsis, bool circularize)
+    public static double ΔvFromC3(double mu, double sphereOfInfluence, double c3, double periapsis, double apoapsis)
     {
-        var vStart = circularize
-            ? CircularVelocity(mu, periapsis)
-            : PeriapsisVelocityElliptical(mu, periapsis, sphereOfInfluence);
+        var vStart = PeriapsisVelocityElliptical(mu, periapsis, apoapsis);
 
         // ReSharper disable once InconsistentNaming
         var Δv = Math.Sqrt(PeriapsisVelocitySquared(mu, sphereOfInfluence, c3, periapsis)) - vStart;
