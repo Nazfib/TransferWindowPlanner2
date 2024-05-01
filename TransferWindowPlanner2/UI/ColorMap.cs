@@ -16,12 +16,6 @@ public static class ColorMap
 
     public static Color MapColorReverse(float value, float min, float max) => MapColor(-value, -max, -min);
 
-    public static Color MapColorLogarithmic(float value, float min, float max) =>
-        MapColor(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
-
-    public static Color MapColorLogarithmicReverse(float value, float min, float max) =>
-        MapColorReverse(Mathf.Log10(value), Mathf.Log10(min), Mathf.Log10(max));
-
     private static readonly Color[] ColorValues =
     {
         // This is the CET-L20 color map by Peter Kovesi.
