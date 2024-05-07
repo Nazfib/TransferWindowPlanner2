@@ -21,8 +21,6 @@ also uses a modified version of the marker texture. TWP is used under the MIT
 license (see [LICENSE.TransferWindowPlanner](/LICENSE.TransferWindowPlanner)).
 
 Depends on MechJebLib, a part of (the dev version of) the MechJeb2 mod for KSP.
-MechJebLib is used under the terms of the MIT license (see
-[LICENSE.MechJebLib](/LICENSE.MechJebLib)).
 
 The color map used in the plot is CET-L20 by Peter Kosevi. It is available at
 [colorcet.com](https://colorcet.com) under a CC-BY-4.0 license.
