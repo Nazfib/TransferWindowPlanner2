@@ -9,8 +9,8 @@
 ## GUI
 
 - [ ] Drag-click to zoom into a launch window
-- [ ] Persistence: remember input settings and plot between scene switches
-  - Add a way to restore a plot from a KAC/Alarm Clock alarm?
+- [x] Persistence: remember input settings and plot between scene switches
+- [ ] Add a way to restore a plot from a KAC/Alarm Clock alarm?
 - [ ] Add localization support to all strings
 - [x] Add Click-Through-Blocker support
 - [ ] Make KAC alarm margin configurable

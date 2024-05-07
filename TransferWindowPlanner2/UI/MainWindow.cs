@@ -14,7 +14,7 @@ using Rendering;
 using static Solver.MoreMaths;
 using static GuiUtils;
 
-[KSPAddon(KSPAddon.Startup.AllGameScenes, false)]
+[KSPAddon(KSPAddon.Startup.AllGameScenes, true)]
 public class MainWindow : MonoBehaviour
 {
     private const string ModName = "TransferWindowPlanner2";
@@ -127,15 +127,14 @@ public class MainWindow : MonoBehaviour
 
     protected void Awake()
     {
+        DontDestroyOnLoad(this);
         GameEvents.onGUIApplicationLauncherReady.Add(OnGuiAppLauncherReady);
+        GameEvents.onGUIApplicationLauncherDestroyed.Add(OnGuiAppLauncherDestroyed);
         GameEvents.onGameSceneLoadRequested.Add(OnSceneChange);
-        if (RenderUtils.CurrentSceneHasMapView())
-        {
-            _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
-        }
+
         _hasPrincipia =
             AssemblyLoader.loadedAssemblies.Any(a => a.assembly.GetName().Name == "principia.ksp_plugin_adapter");
-        if (_hasPrincipia) { Debug.Log("[TWP2] Detected Principia"); }
+        Debug.Log(_hasPrincipia ? "[TWP2] Detected Principia" : "[TWP2] No Principia detected");
         _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
         _markerTex = GameDatabase.Instance.GetTexture(Marker, false);
@@ -181,9 +180,10 @@ public class MainWindow : MonoBehaviour
     public void OnDestroy()
     {
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
+        GameEvents.onGUIApplicationLauncherDestroyed.Remove(OnGuiAppLauncherDestroyed);
         GameEvents.onGameSceneLoadRequested.Remove(OnSceneChange);
+
         Destroy(_bodySelectionWindow);
-        if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
         if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
 
         Destroy(_plotArrival);
@@ -219,11 +219,20 @@ public class MainWindow : MonoBehaviour
 
     private void OnSceneChange(GameScenes s)
     {
-        _showMainWindow = false;
+        HideWindow();
+        _showEjectAngle = _showParkingOrbit = false;
+        if (_ejectAngleRenderer != null) { Destroy(_ejectAngleRenderer); }
+        if (_parkingOrbitRenderer != null)
+        {
+            _parkingOrbitRenderer.Cleanup();
+            _parkingOrbitRenderer = null;
+        }
     }
 
     private void OnGuiAppLauncherReady()
     {
+        if (_button != null) { return; }
+
         try
         {
             _button = ApplicationLauncher.Instance.AddModApplication(
@@ -238,6 +247,11 @@ public class MainWindow : MonoBehaviour
             Debug.LogError($"{ModName} failed to register button");
             Debug.LogException(ex);
         }
+    }
+
+    private void OnGuiAppLauncherDestroyed()
+    {
+        if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
     }
 
     private void WindowGUI(int id)
@@ -590,6 +604,7 @@ public class MainWindow : MonoBehaviour
     private void Update()
     {
         if (!RenderUtils.CurrentSceneHasMapView()) { return; }
+
         if (!_transferDetails.IsValid || !_transferDetails.Origin.IsCelestial)
         {
             _showParkingOrbit = _showEjectAngle = false;
@@ -598,6 +613,10 @@ public class MainWindow : MonoBehaviour
         if (_showParkingOrbit && _parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
         else if (!_showParkingOrbit && _parkingOrbitRenderer != null) { DisableParkingOrbitRenderer(); }
 
+        if (_ejectAngleRenderer == null)
+        {
+            _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
+        }
         if (_showEjectAngle && !_ejectAngleRenderer!.IsDrawing) { EnableEjectionRenderer(); }
         else if (!_showEjectAngle && !_ejectAngleRenderer!.IsHiding) { DisableEjectionRenderer(); }
     }
