@@ -121,6 +121,8 @@ public class MainWindow : MonoBehaviour
     private Solver _solver = null!; // Initialized in Awake()
     private bool _plotIsUpdating;
 
+    private DoubleInput _alarmMargin = new DoubleInput(24, 0); // Default 24h; should be 6h for stock?
+
     private MapAngleRenderer? _ejectAngleRenderer;
     private ParkingOrbitRendererHack? _parkingOrbitRenderer;
     private bool _showEjectAngle;
@@ -595,6 +597,7 @@ public class MainWindow : MonoBehaviour
         {
             if (GUILayout.Button("Create alarm")) { CreateAlarm(); }
             if (KACWrapper.APIReady && GUILayout.Button("Create KAC alarm")) { CreateKACAlarm(); }
+            LabeledDoubleInput("Alarm margin", ref _alarmMargin, "h");
 
             if (RenderUtils.CurrentSceneHasMapView())
             {
@@ -710,7 +713,7 @@ public class MainWindow : MonoBehaviour
 
     private void CreateAlarm()
     {
-        var alarm = new TWPAlarm(_transferDetails);
+        var alarm = new TWPAlarm(_transferDetails, _alarmMargin.Value * 3600);
         AlarmClockScenario.AddAlarm(alarm);
     }
 
@@ -723,7 +726,7 @@ public class MainWindow : MonoBehaviour
                 _transferDetails.Origin.Name,
                 _transferDetails.Destination.Name,
                 KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, _transferDetails.IsShort)),
-            _transferDetails.DepartureTime - 24 * 60 * 60);
+            _transferDetails.DepartureTime - _alarmMargin.Value * 3600);
 
         var alarm = KACWrapper.KAC.Alarms.First(a => a.ID == tmpID);
         alarm.Notes = _transferDetails.Description();

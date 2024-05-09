@@ -13,7 +13,7 @@
 - [ ] Add a way to restore a plot from a KAC/Alarm Clock alarm?
 - [ ] Add localization support to all strings
 - [x] Add Click-Through-Blocker support
-- [ ] Make KAC alarm margin configurable
+- [x] Make KAC alarm margin configurable
 - [x] Plot margin: Make limits configurable for both departure and arrival,
   separately. A linear limit, default ~1000 m/s, would probably be appropriate.
 

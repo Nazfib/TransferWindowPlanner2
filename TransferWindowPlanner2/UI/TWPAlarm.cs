@@ -15,10 +15,10 @@ public class TWPAlarm : AlarmTypeBase
         iconURL = "xfer";
     }
 
-    public TWPAlarm(Solver.TransferDetails transfer)
+    public TWPAlarm(Solver.TransferDetails transfer, double margin)
     {
-        ut = transfer.DepartureTime - Margin;
-        eventOffset = Margin;
+        ut = transfer.DepartureTime - margin;
+        eventOffset = Margin = margin;
         iconURL = "xfer";
         actions.warp = AlarmActions.WarpEnum.KillWarp;
         title = string.Format(
