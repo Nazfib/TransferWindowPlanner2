@@ -17,7 +17,10 @@ using static GuiUtils;
 [KSPAddon(KSPAddon.Startup.AllGameScenes, true)]
 public class MainWindow : MonoBehaviour
 {
+    #region UI Fields
+
     private const string ModName = "TransferWindowPlanner2";
+
     private const string Icon = "TransferWindowPlanner2/icon";
     private const string Marker = "TransferWindowPlanner2/marker";
     private static readonly Vector2 MarkerSize = new Vector2(16, 16);
@@ -37,6 +40,20 @@ public class MainWindow : MonoBehaviour
 
     private ApplicationLauncherButton? _button;
 
+    private bool _showMainWindow;
+    internal Rect WinPos = new Rect(450, 100, WindowWidth, WindowHeight);
+    private Rect _plotPosition;
+    private string _tooltip = "";
+
+    private MapAngleRenderer? _ejectAngleRenderer;
+    private ParkingOrbitRendererHack? _parkingOrbitRenderer;
+    private bool _showEjectAngle;
+    private bool _showParkingOrbit;
+
+    #endregion
+
+    #region Input fields
+
     private enum PlotType
     {
         Departure = 0, Arrival = 1, Total = 2,
@@ -44,12 +61,6 @@ public class MainWindow : MonoBehaviour
 
     private PlotType _selectedPlot = PlotType.Total;
 
-    private bool _showMainWindow;
-    internal Rect WinPos = new Rect(450, 100, WindowWidth, WindowHeight);
-    private Rect _plotPosition;
-    private string _tooltip = "";
-
-    // Input fields; initialized in Start()
     private BodySelectionWindow _bodySelectionWindow = null!;
     private CelestialBody _centralBody = null!;
     private Endpoint _departureBody;
@@ -112,21 +123,23 @@ public class MainWindow : MonoBehaviour
     private DoubleInput _plotMarginDep = new DoubleInput(1e3, 0);
     private DoubleInput _plotMarginArr = new DoubleInput(1e3, 0);
 
+    private DoubleInput _alarmMargin = new DoubleInput(24, 0); // Default 24h; should be 6h for stock?
+    private readonly List<string> _errors = new List<string>();
+
+    #endregion
+
+    #region Solver fields
+
     private (int, int) _selectedTransfer;
     private TransferDetails _transferDetails;
-
-    private readonly List<string> _errors = new List<string>();
 
     private bool _hasPrincipia;
     private Solver _solver = null!; // Initialized in Awake()
     private bool _plotIsUpdating;
 
-    private DoubleInput _alarmMargin = new DoubleInput(24, 0); // Default 24h; should be 6h for stock?
+    #endregion
 
-    private MapAngleRenderer? _ejectAngleRenderer;
-    private ParkingOrbitRendererHack? _parkingOrbitRenderer;
-    private bool _showEjectAngle;
-    private bool _showParkingOrbit;
+    #region Unity methods/event handlers
 
     protected void Awake()
     {
@@ -209,17 +222,6 @@ public class MainWindow : MonoBehaviour
         }
     }
 
-    private void ShowWindow()
-    {
-        _showMainWindow = true;
-    }
-
-    private void HideWindow()
-    {
-        _showMainWindow = false;
-        _bodySelectionWindow.Which = BodySelectionWindow.SelectionKind.None;
-    }
-
     private void OnSceneChange(GameScenes s)
     {
         HideWindow();
@@ -255,6 +257,41 @@ public class MainWindow : MonoBehaviour
     private void OnGuiAppLauncherDestroyed()
     {
         if (_button != null) { ApplicationLauncher.Instance.RemoveModApplication(_button); }
+    }
+
+    private void Update()
+    {
+        if (!RenderUtils.CurrentSceneHasMapView()) { return; }
+
+        if (!_transferDetails.IsValid || !_transferDetails.Origin.IsCelestial)
+        {
+            _showParkingOrbit = _showEjectAngle = false;
+        }
+
+        if (_showParkingOrbit && _parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
+        else if (!_showParkingOrbit && _parkingOrbitRenderer != null) { DisableParkingOrbitRenderer(); }
+
+        if (_ejectAngleRenderer == null)
+        {
+            _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
+        }
+        if (_showEjectAngle && !_ejectAngleRenderer!.IsDrawing) { EnableEjectionRenderer(); }
+        else if (!_showEjectAngle && !_ejectAngleRenderer!.IsHiding) { DisableEjectionRenderer(); }
+    }
+
+    #endregion
+
+    #region GUI
+
+    private void ShowWindow()
+    {
+        _showMainWindow = true;
+    }
+
+    private void HideWindow()
+    {
+        _showMainWindow = false;
+        _bodySelectionWindow.Which = BodySelectionWindow.SelectionKind.None;
     }
 
     private void WindowGUI(int id)
@@ -612,25 +649,34 @@ public class MainWindow : MonoBehaviour
         }
     }
 
-    private void Update()
+
+    private void ResetTimes()
     {
-        if (!RenderUtils.CurrentSceneHasMapView()) { return; }
+        var departureRange = Clamp(
+            2 * SynodicPeriod(DepartureBody.Orbit.period, ArrivalBody.Orbit.period),
+            Math.Max(DepartureBody.Orbit.period, KSPUtil.dateTimeFormatter.Day),
+            2 * DepartureBody.Orbit.period);
 
-        if (!_transferDetails.IsValid || !_transferDetails.Origin.IsCelestial)
-        {
-            _showParkingOrbit = _showEjectAngle = false;
-        }
+        _earliestDeparture.Ut = Planetarium.GetUniversalTime();
+        _latestDeparture.Ut = _earliestDeparture.Ut + departureRange;
 
-        if (_showParkingOrbit && _parkingOrbitRenderer == null) { EnableParkingOrbitRenderer(); }
-        else if (!_showParkingOrbit && _parkingOrbitRenderer != null) { DisableParkingOrbitRenderer(); }
+        var hohmannTime = HohmannTime(
+            DepartureBody.Orbit.referenceBody.gravParameter,
+            DepartureBody.Orbit.semiMajorAxis,
+            ArrivalBody.Orbit.semiMajorAxis);
+        var transferRange = Math.Min(1.5 * hohmannTime, 2 * ArrivalBody.Orbit.period);
+        var transferMin = Math.Max(0.5 * hohmannTime, hohmannTime - ArrivalBody.Orbit.period);
+        var travelMax = transferMin + transferRange;
 
-        if (_ejectAngleRenderer == null)
-        {
-            _ejectAngleRenderer = MapView.MapCamera.gameObject.AddComponent<MapAngleRenderer>();
-        }
-        if (_showEjectAngle && !_ejectAngleRenderer!.IsDrawing) { EnableEjectionRenderer(); }
-        else if (!_showEjectAngle && !_ejectAngleRenderer!.IsHiding) { DisableEjectionRenderer(); }
+        _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
+        _latestArrival.Ut = _latestDeparture.Ut + travelMax;
+        // We set the input value/text directly; therefore, we need to call OnInputChanged manually as well.
+        OnInputChanged();
     }
+
+    #endregion
+
+    #region Generating the plots
 
     private void GeneratePlots()
     {
@@ -663,6 +709,30 @@ public class MainWindow : MonoBehaviour
         _plotIsUpdating = false;
     }
 
+
+    // ReSharper disable once InconsistentNaming
+    private static void DrawTexture(Texture2D tex, double[,] Δv, double minΔv, double maxΔv)
+    {
+        for (var i = 0; i < PlotWidth; ++i)
+        {
+            for (var j = 0; j < PlotHeight; ++j)
+            {
+                var color = ColorMap.MapColorReverse((float)Δv[i, j], (float)minΔv, (float)maxΔv);
+                tex.SetPixel(i, PlotHeight - j - 1, color);
+            }
+        }
+        tex.Apply();
+    }
+
+    private static void ClearTexture(Texture2D tex)
+    {
+        for (var i = 0; i < tex.width; ++i)
+        {
+            for (var j = 0; j < tex.height; ++j) { tex.SetPixel(i, j, Color.clear); }
+        }
+        tex.Apply();
+    }
+
     private void UpdateTransferDetails((int, int) point)
     {
         var (tDep, tArr) = _solver.TimesFor(point);
@@ -672,6 +742,10 @@ public class MainWindow : MonoBehaviour
         if (_showEjectAngle) { EnableEjectionRenderer(); }
         if (_showParkingOrbit) { EnableParkingOrbitRenderer(); }
     }
+
+    #endregion
+
+    #region Map view renderers
 
     private void EnableParkingOrbitRenderer()
     {
@@ -711,6 +785,10 @@ public class MainWindow : MonoBehaviour
         _ejectAngleRenderer.Hide();
     }
 
+    #endregion
+
+    #region Alarms
+
     private void CreateAlarm()
     {
         var alarm = new TWPAlarm(_transferDetails, _alarmMargin.Value * 3600);
@@ -736,53 +814,9 @@ public class MainWindow : MonoBehaviour
         alarm.XferTargetBodyName = _transferDetails.Destination.Name;
     }
 
-    // ReSharper disable once InconsistentNaming
-    private static void DrawTexture(Texture2D tex, double[,] Δv, double minΔv, double maxΔv)
-    {
-        for (var i = 0; i < PlotWidth; ++i)
-        {
-            for (var j = 0; j < PlotHeight; ++j)
-            {
-                var color = ColorMap.MapColorReverse((float)Δv[i, j], (float)minΔv, (float)maxΔv);
-                tex.SetPixel(i, PlotHeight - j - 1, color);
-            }
-        }
-        tex.Apply();
-    }
+    #endregion
 
-    private static void ClearTexture(Texture2D tex)
-    {
-        for (var i = 0; i < tex.width; ++i)
-        {
-            for (var j = 0; j < tex.height; ++j) { tex.SetPixel(i, j, Color.clear); }
-        }
-        tex.Apply();
-    }
-
-    private void ResetTimes()
-    {
-        var departureRange = Clamp(
-            2 * SynodicPeriod(DepartureBody.Orbit.period, ArrivalBody.Orbit.period),
-            Math.Max(DepartureBody.Orbit.period, KSPUtil.dateTimeFormatter.Day),
-            2 * DepartureBody.Orbit.period);
-
-        _earliestDeparture.Ut = Planetarium.GetUniversalTime();
-        _latestDeparture.Ut = _earliestDeparture.Ut + departureRange;
-
-        var hohmannTime = HohmannTime(
-            DepartureBody.Orbit.referenceBody.gravParameter,
-            DepartureBody.Orbit.semiMajorAxis,
-            ArrivalBody.Orbit.semiMajorAxis);
-        var transferRange = Math.Min(1.5 * hohmannTime, 2 * ArrivalBody.Orbit.period);
-        var transferMin = Math.Max(0.5 * hohmannTime, hohmannTime - ArrivalBody.Orbit.period);
-        var travelMax = transferMin + transferRange;
-
-        _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
-        _latestArrival.Ut = _latestDeparture.Ut + travelMax;
-        // We set the input value/text directly; therefore, we need to call OnInputChanged manually as well.
-        OnInputChanged();
-    }
-
+    # region UI Utils
 
     private static void LabeledInfo(string label, string value)
     {
@@ -832,5 +866,7 @@ public class MainWindow : MonoBehaviour
         // size as a LabeledDoubleInput
         GUILayout.Label("", ResultLabelStyle, GUILayout.Width(25));
     }
+
+    #endregion
 }
 }
