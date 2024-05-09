@@ -3,7 +3,6 @@
 ## General
 
 - [ ] Find a better name than TWP2
-- [ ] Move this to-do list to GitHub issues
 - [x] Depend on MechJebLib directly, instead of including some files from it
 
 ## GUI
@@ -26,11 +25,14 @@
 
 ## Principia
 
-- [ ] ~~Try using the `CelestialGetPosition` API from Principia.~~ Update:
-  using an infinite SoI makes the Δv be exactly right (at least for the case
-  where the launch window is right now), so this doesn't seem to be needed. Can
-  revisit if longer-term predictions still turn out to be wrong.
-- [ ] Check how the reference frames between Principia, Unity and KSP line up
+- [ ] Fix the inclination and LAN calculations when using Principia. In
+  particular, when not in the SoI of the departure planet, the ejection LAN and
+  inclination are wrong; when not in the SoI of the arrival planet, the arrival
+  inclination is wrong. Same goes for the RA and DEC of the asymptote; they are
+  relative to the reference frame of the current SoI, not that of the relevant
+  planet. When planning from the VAB, in the space center, or on the launch
+  pad, the values are correct for Earth (Kerbin) — this is the most common
+  case.
   - Nathan has found a way to correctly find the inclination, and implemented
     it in ROUtils. See about either copying it, or adding a dependency (if
     there's more useful stuff in there)
