@@ -109,7 +109,8 @@ public class MainWindow : MonoBehaviour
     private DateInput _earliestArrival = new DateInput();
     private DateInput _latestArrival = new DateInput();
 
-    private DoubleInput _plotMargin = new DoubleInput(2.0, 1.0);
+    private DoubleInput _plotMarginDep = new DoubleInput(1e3, 0);
+    private DoubleInput _plotMarginArr = new DoubleInput(1e3, 0);
 
     private (int, int) _selectedTransfer;
     private TransferDetails _transferDetails;
@@ -330,6 +331,10 @@ public class MainWindow : MonoBehaviour
         {
             _errors.Add("Earliest departure must be before latest departure");
         }
+        if (!_plotMarginDep.Valid)
+        {
+            _errors.Add($"Departure Δv margin should be a positive number ({_plotMarginDep.Text})");
+        }
 
         if (ArrivalBody.IsCelestial)
         {
@@ -346,13 +351,15 @@ public class MainWindow : MonoBehaviour
         if (!_earliestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_earliestArrival.Text})"); }
         if (!_latestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_latestArrival.Text})"); }
         if (_earliestArrival.Ut >= _latestArrival.Ut) { _errors.Add("Earliest arrival must be before latest arrival"); }
+        if (!_plotMarginArr.Valid)
+        {
+            _errors.Add($"Arrival Δv margin should be a positive number ({_plotMarginArr.Text})");
+        }
 
         if (_earliestDeparture.Ut >= _latestArrival.Ut)
         {
             _errors.Add("Earliest departure must be before latest arrival");
         }
-
-        if (!_plotMargin.Valid) { _errors.Add($"Plot margin should be a number greater than 1 ({_plotMargin.Text})"); }
     }
 
     private void ShowInputs()
@@ -402,6 +409,7 @@ public class MainWindow : MonoBehaviour
             }
             LabeledDateInput("Earliest", ref _earliestDeparture);
             LabeledDateInput("Latest", ref _latestDeparture);
+            LabeledDoubleInput("Δv margin", ref _plotMarginDep, "m/s");
         }
 
         using (new GUILayout.VerticalScope(BoxStyle))
@@ -429,11 +437,11 @@ public class MainWindow : MonoBehaviour
             }
             LabeledDateInput("Earliest", ref _earliestArrival);
             LabeledDateInput("Latest", ref _latestArrival);
+            LabeledDoubleInput("Δv margin", ref _plotMarginArr, "m/s");
         }
 
         _bodySelectionWindow.Which = nextSelectionKind;
 
-        LabeledDoubleInput("Plot margin", ref _plotMargin);
 
         GUILayout.FlexibleSpace();
 
@@ -640,9 +648,11 @@ public class MainWindow : MonoBehaviour
 
     private void OnSolverDone()
     {
-        DrawTexture(_plotDeparture, _solver.DepΔv, _solver.MinDepΔv, _solver.MinDepΔv * _plotMargin.Value);
-        DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinArrΔv * _plotMargin.Value);
-        DrawTexture(_plotTotal, _solver.TotalΔv, _solver.MinTotalΔv, _solver.MinTotalΔv * _plotMargin.Value);
+        DrawTexture(_plotDeparture, _solver.DepΔv, _solver.MinDepΔv, _solver.MinDepΔv + _plotMarginDep.Value);
+        DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinArrΔv + _plotMarginArr.Value);
+        DrawTexture(
+            _plotTotal, _solver.TotalΔv, _solver.MinTotalΔv,
+            _solver.MinTotalΔv + _plotMarginDep.Value + _plotMarginArr.Value);
         UpdateTransferDetails(_solver.MinTotalPoint);
         _plotIsDrawn = true;
 
@@ -723,13 +733,14 @@ public class MainWindow : MonoBehaviour
         alarm.XferTargetBodyName = _transferDetails.Destination.Name;
     }
 
-    private static void DrawTexture(Texture2D tex, double[,] c3, double minC3, double maxC3)
+    // ReSharper disable once InconsistentNaming
+    private static void DrawTexture(Texture2D tex, double[,] Δv, double minΔv, double maxΔv)
     {
         for (var i = 0; i < PlotWidth; ++i)
         {
             for (var j = 0; j < PlotHeight; ++j)
             {
-                var color = ColorMap.MapColorReverse((float)c3[i, j], (float)minC3, (float)maxC3);
+                var color = ColorMap.MapColorReverse((float)Δv[i, j], (float)minΔv, (float)maxΔv);
                 tex.SetPixel(i, PlotHeight - j - 1, color);
             }
         }
