@@ -14,7 +14,7 @@ using Rendering;
 using static Solver.MoreMaths;
 using static GuiUtils;
 
-[KSPAddon(KSPAddon.Startup.AllGameScenes, true)]
+[KSPAddon(KSPAddon.Startup.AllGameScenes, once: true)]
 public class MainWindow : MonoBehaviour
 {
     #region UI Fields
@@ -117,13 +117,13 @@ public class MainWindow : MonoBehaviour
     // reset them to a valid state. This is done to avoid calling any KSP/Unity APIs during class construction.
     private DateInput _earliestDeparture = new DateInput();
     private DateInput _latestDeparture = new DateInput();
-    private DateInput _earliestArrival = new DateInput();
-    private DateInput _latestArrival = new DateInput();
+    private DoubleInput _minTimeOfFlight = new DoubleInput(100, min: 0.0);
+    private DoubleInput _maxTimeOfFlight = new DoubleInput(400, min: 0.0);
 
-    private DoubleInput _plotMarginDep = new DoubleInput(1e3, 0);
-    private DoubleInput _plotMarginArr = new DoubleInput(1e3, 0);
+    private DoubleInput _plotMarginDep = new DoubleInput(1e3, min: 0);
+    private DoubleInput _plotMarginArr = new DoubleInput(1e3, min: 0);
 
-    private DoubleInput _alarmMargin = new DoubleInput(24, 0); // Default 24h; should be 6h for stock?
+    private DoubleInput _alarmMargin = new DoubleInput(value: 24, min: 0); // Default 24h; should be 6h for stock?
     private readonly List<string> _errors = new List<string>();
 
     #endregion
@@ -387,17 +387,21 @@ public class MainWindow : MonoBehaviour
             }
         }
 
-        if (!_earliestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_earliestArrival.Text})"); }
-        if (!_latestArrival.Valid) { _errors.Add($"Could not parse arrival date ({_latestArrival.Text})"); }
-        if (_earliestArrival.Ut >= _latestArrival.Ut) { _errors.Add("Earliest arrival must be before latest arrival"); }
+        if (!_minTimeOfFlight.Valid)
+        {
+            _errors.Add($"Transfer time should be a positive number ({_minTimeOfFlight.Text})");
+        }
+        if (!_maxTimeOfFlight.Valid)
+        {
+            _errors.Add($"Transfer time should be a positive number ({_maxTimeOfFlight.Text})");
+        }
+        if (_minTimeOfFlight.Value >= _maxTimeOfFlight.Value)
+        {
+            _errors.Add("Min. transfer time must be less than max. transfer time");
+        }
         if (!_plotMarginArr.Valid)
         {
             _errors.Add($"Arrival Δv margin should be a positive number ({_plotMarginArr.Text})");
-        }
-
-        if (_earliestDeparture.Ut >= _latestArrival.Ut)
-        {
-            _errors.Add("Earliest departure must be before latest arrival");
         }
     }
 
@@ -474,8 +478,8 @@ public class MainWindow : MonoBehaviour
                 LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
                 _circularize = GUILayout.Toggle(_circularize, "Circularize");
             }
-            LabeledDateInput("Earliest", ref _earliestArrival);
-            LabeledDateInput("Latest", ref _latestArrival);
+            LabeledDoubleInput("Min. transfer time", ref _minTimeOfFlight, "days");
+            LabeledDoubleInput("Max. transfer time", ref _maxTimeOfFlight, "days");
             LabeledDoubleInput("Δv margin", ref _plotMarginArr, "m/s");
         }
 
@@ -500,7 +504,7 @@ public class MainWindow : MonoBehaviour
         using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
         {
             _selectedPlot = (PlotType)GUILayout.SelectionGrid(
-                (int)_selectedPlot, new[] { "Departure", "Arrival", "Total" }, 3);
+                (int)_selectedPlot, new[] { "Departure", "Arrival", "Total" }, xCount: 3);
 
 
             // Ideally, we'd like to handle this _after_ drawing the plot (and therefore updating _plotPosition);
@@ -541,15 +545,12 @@ public class MainWindow : MonoBehaviour
         var pos = mousePos - _plotPosition.position;
         var i = (int)pos.x;
         var j = (int)pos.y;
-        var (dep, arr) = _solver.TimesFor(i, j);
+        var (dep, tof) = _solver.TimesFor(i, j);
         var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, includeTime: false)}"
-                      + $"\nArrival: {KSPUtil.PrintDateCompact(arr, includeTime: false)}";
-        if (dep < arr)
-        {
-            tooltip += $"\nEject: {_solver.DepΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
-                       + $"\nInsert: {_solver.ArrΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
-                       + $"\nTotal: {_solver.TotalΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s";
-        }
+                      + $"\nArrival: {KSPUtil.PrintDateCompact(dep + tof, includeTime: false)}"
+                      + $"\nEject: {_solver.DepΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
+                      + $"\nInsert: {_solver.ArrΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
+                      + $"\nTotal: {_solver.TotalΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s";
 
         if (Event.current.type == EventType.MouseUp && Event.current.button == 0) { UpdateTransferDetails((i, j)); }
         return tooltip;
@@ -626,7 +627,8 @@ public class MainWindow : MonoBehaviour
             LabeledInfo(
                 "Flight time",
                 KSPUtil.PrintDateDeltaCompact(
-                    _transferDetails.TimeOfFlight, _transferDetails.IsShort, false, 2));
+                    _transferDetails.TimeOfFlight, _transferDetails.IsShort, includeSeconds: false,
+                    interestedPlaces: 2));
             LabeledInfo("Total Δv", $"{_transferDetails.TotalΔv.ToSI()}m/s");
         }
 
@@ -668,8 +670,8 @@ public class MainWindow : MonoBehaviour
         var transferMin = Math.Max(0.5 * hohmannTime, hohmannTime - ArrivalBody.Orbit.period);
         var travelMax = transferMin + transferRange;
 
-        _earliestArrival.Ut = _earliestDeparture.Ut + transferMin;
-        _latestArrival.Ut = _latestDeparture.Ut + travelMax;
+        _minTimeOfFlight.Value = Math.Ceiling(transferMin / KSPUtil.dateTimeFormatter.Day);
+        _maxTimeOfFlight.Value = Math.Ceiling(travelMax / KSPUtil.dateTimeFormatter.Day);
         // We set the input value/text directly; therefore, we need to call OnInputChanged manually as well.
         OnInputChanged();
     }
@@ -690,7 +692,8 @@ public class MainWindow : MonoBehaviour
         _solver.GeneratePorkchop(
             DepartureBody, ArrivalBody,
             _earliestDeparture.Ut, _latestDeparture.Ut,
-            _earliestArrival.Ut, _latestArrival.Ut,
+            _minTimeOfFlight.Value * KSPUtil.dateTimeFormatter.Day,
+            _maxTimeOfFlight.Value * KSPUtil.dateTimeFormatter.Day,
             _departureAltitude.Value * 1e3, Deg2Rad(_departureInclination.Value),
             _arrivalAltitude.Value * 1e3, _circularize);
     }
@@ -735,9 +738,9 @@ public class MainWindow : MonoBehaviour
 
     private void UpdateTransferDetails((int, int) point)
     {
-        var (tDep, tArr) = _solver.TimesFor(point);
+        var (tDep, tof) = _solver.TimesFor(point);
         _selectedTransfer = point;
-        _transferDetails = _solver.CalculateDetails(tDep, tArr);
+        _transferDetails = _solver.CalculateDetails(tDep, tDep + tof);
 
         if (_showEjectAngle) { EnableEjectionRenderer(); }
         if (_showParkingOrbit) { EnableParkingOrbitRenderer(); }
@@ -791,7 +794,7 @@ public class MainWindow : MonoBehaviour
 
     private void CreateAlarm()
     {
-        var alarm = new TWPAlarm(_transferDetails, _alarmMargin.Value * 3600);
+        var alarm = new TWPAlarm(_transferDetails, _alarmMargin.Value * KSPUtil.dateTimeFormatter.Hour);
         AlarmClockScenario.AddAlarm(alarm);
     }
 
@@ -804,11 +807,11 @@ public class MainWindow : MonoBehaviour
                 _transferDetails.Origin.Name,
                 _transferDetails.Destination.Name,
                 KSPUtil.PrintDateDelta(_transferDetails.TimeOfFlight, _transferDetails.IsShort)),
-            _transferDetails.DepartureTime - _alarmMargin.Value * 3600);
+            _transferDetails.DepartureTime - _alarmMargin.Value * KSPUtil.dateTimeFormatter.Hour);
 
         var alarm = KACWrapper.KAC.Alarms.First(a => a.ID == tmpID);
         alarm.Notes = _transferDetails.Description();
-        alarm.AlarmMargin = 24 * 60 * 60;
+        alarm.AlarmMargin = _alarmMargin.Value * KSPUtil.dateTimeFormatter.Hour;
         alarm.AlarmAction = KACWrapper.KACAPI.AlarmActionEnum.KillWarp;
         alarm.XferOriginBodyName = _transferDetails.Origin.Name;
         alarm.XferTargetBodyName = _transferDetails.Destination.Name;

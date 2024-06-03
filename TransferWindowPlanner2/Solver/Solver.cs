@@ -30,8 +30,8 @@ public partial class Solver : BackgroundJob<int>
 
     private double _earliestDeparture;
     private double _latestDeparture;
-    private double _earliestArrival;
-    private double _latestArrival;
+    private double _minTimeOfFlight;
+    private double _maxTimeOfFlight;
     private double _departurePeR;
     private double _departureMinInc;
     private double _arrivalPeR;
@@ -62,7 +62,7 @@ public partial class Solver : BackgroundJob<int>
     public void GeneratePorkchop(
         Endpoint origin, Endpoint destination,
         double earliestDeparture, double latestDeparture,
-        double earliestArrival, double latestArrival,
+        double minTimeOfFlight, double maxTimeOfFlight,
         double departureAltitude, double departureMinInclination,
         double arrivalAltitude, bool circularize)
     {
@@ -71,8 +71,8 @@ public partial class Solver : BackgroundJob<int>
 
         _earliestDeparture = earliestDeparture;
         _latestDeparture = latestDeparture;
-        _earliestArrival = earliestArrival;
-        _latestArrival = latestArrival;
+        _minTimeOfFlight = minTimeOfFlight;
+        _maxTimeOfFlight = maxTimeOfFlight;
 
         if (origin.IsCelestial)
         {
@@ -128,14 +128,14 @@ public partial class Solver : BackgroundJob<int>
 
     internal (double, double) TimesFor((int i, int j) t) => TimesFor(t.i, t.j);
 
-    internal (double, double) TimesFor(int i, int j) => (DepartureTime(i), ArrivalTime(j));
+    internal (double, double) TimesFor(int i, int j) => (DepartureTime(i), TimeOfFlight(j));
 
-    private double ArrivalTime(int j)
+    private double TimeOfFlight(int j)
     {
         // Top to bottom -> decreasing arrival time
-        var arrStep = (_latestArrival - _earliestArrival) / (_nArrivals - 1);
-        var tArr = _latestArrival - j * arrStep;
-        return tArr;
+        var tofStep = (_maxTimeOfFlight - _minTimeOfFlight) / (_nArrivals - 1);
+        var tof = _maxTimeOfFlight - j * tofStep;
+        return tof;
     }
 
     private double DepartureTime(int i)
@@ -154,14 +154,9 @@ public partial class Solver : BackgroundJob<int>
         for (var j = 0; j < _nArrivals; ++j)
         {
             // Left to right -> increasing departure time
-            var (tDep, tArr) = TimesFor(i, j);
+            var (tDep, timeOfFlight) = TimesFor(i, j);
 
-            var timeOfFlight = tArr - tDep;
-            if (timeOfFlight <= 0)
-            {
-                DepΔv[i, j] = ArrΔv[i, j] = TotalΔv[i, j] = float.NaN;
-                continue;
-            }
+            var tArr = tDep + timeOfFlight;
 
             var depPos = _depPos[i];
             var depCbVel = _depVel[i];

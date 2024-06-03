@@ -75,7 +75,8 @@ public static class GuiUtils
             set
             {
                 _ut = value;
-                _text = KSPUtil.PrintDateCompact(value, false).Trim(); // RSSTimeFormatter includes a trailing space
+                _text = KSPUtil.PrintDateCompact(value, includeTime: false)
+                               .Trim(); // RSSTimeFormatter includes a trailing space
                 Valid = true;
             }
         }
