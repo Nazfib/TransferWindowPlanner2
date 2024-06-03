@@ -498,10 +498,10 @@ public class MainWindow : MonoBehaviour
             {
                 if (GUILayout.Button(new GUIContent("Plot it!", string.Join("\n", _errors)))) { GeneratePlots(); }
             }
-            using (new GuiEnabled(_plotIsDrawn))
-            {
-                if (GUILayout.Button(new GUIContent("Save PNG"))) { SaveToPNG(); }
-            }
+            // using (new GuiEnabled(_plotIsDrawn))
+            // {
+            //     if (GUILayout.Button(new GUIContent("Save PNG"))) { SaveToPNG(); }
+            // }
         }
 
         GUILayout.FlexibleSpace();
