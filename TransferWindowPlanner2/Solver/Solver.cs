@@ -20,8 +20,6 @@ public partial class Solver : BackgroundJob<int>
 
     private readonly V3[] _depPos;
     private readonly V3[] _depVel;
-    private readonly V3[] _arrPos;
-    private readonly V3[] _arrVel;
 
     internal readonly float[,] DepΔv;
     internal readonly float[,] ArrΔv;
@@ -51,9 +49,7 @@ public partial class Solver : BackgroundJob<int>
 
         _depPos = new V3[nDepartures];
         _depVel = new V3[nDepartures];
-        _arrPos = new V3[nArrivals];
-        _arrVel = new V3[nArrivals];
-        // 400 * (4*24) = 37.5 kiB
+        // 2 * 400 * 24 = 18.75 kiB
 
         DepΔv = new float[nDepartures, nArrivals];
         ArrΔv = new float[nDepartures, nArrivals];
@@ -101,16 +97,15 @@ public partial class Solver : BackgroundJob<int>
         {
             (_depPos[i], _depVel[i]) = BodyStateVectorsAt(origin, DepartureTime(i));
         }
-        for (var j = 0; j < _nArrivals; ++j)
-        {
-            (_arrPos[j], _arrVel[j]) = BodyStateVectorsAt(destination, ArrivalTime(j));
-        }
 
         StartJob(null);
     }
 
     private (V3, V3) BodyStateVectorsAt(Endpoint body, double time)
     {
+        // NOTE: this method is now called from outside the Main thread. Since it only uses simple property accesses
+        // (i.e. it doesn't call any Unity APIs, even indirectly), this should be safe.
+        // The only method that does more than a simple variable read, is `orbit.TrueAnomalyAtUT`.
         var orbit = body.Orbit;
         var mu = orbit.referenceBody.gravParameter;
         if (_hasPrincipia)
@@ -169,9 +164,8 @@ public partial class Solver : BackgroundJob<int>
             }
 
             var depPos = _depPos[i];
-            var arrPos = _arrPos[j];
             var depCbVel = _depVel[i];
-            var arrCbVel = _arrVel[j];
+            var (arrPos, arrCbVel) = BodyStateVectorsAt(_destination, tArr);
 
             var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, depCbVel, arrPos, timeOfFlight, 0);
 
