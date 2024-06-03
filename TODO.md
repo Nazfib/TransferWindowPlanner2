@@ -15,8 +15,13 @@
 - [x] Make KAC alarm margin configurable
 - [x] Plot margin: Make limits configurable for both departure and arrival,
   separately. A linear limit, default ~1000 m/s, would probably be appropriate.
-- [ ] Investigate: is setting time-of-flight better than arrival date? By a
-  large margin, most of the Lambert calculation results are completely ignored!
+- [x] Change Y-axis of the plot to time-of-flight, instead of arrival date. When
+  trying to plot multiple windows, by far the majority of the calculations are
+  "wasted". They correspond to transfers with departure dates from one transfer
+  window, and arrival dates from another. In almost all cases this results in a
+  very large Δv requirement, which will then be plotted as the gray background
+  color. With time-of-flight based porkchop, multiple launch windows line up
+  vertically; there's a lot less wasted number crunching.
 
 ## Maths
 
