@@ -30,6 +30,8 @@ public class MainWindow : MonoBehaviour
     private const int PlotHeight = 400;
     private const int WindowWidth = 750;
     private const int WindowHeight = 600;
+    private const int UnitLabelWidth = 35;
+    private const int InputLabelWidth = 120;
 
     // Initialized in Awake()
     private Texture2D _plotArrival = null!;
@@ -448,7 +450,7 @@ public class MainWindow : MonoBehaviour
             using (new GuiEnabled(DepartureBody.IsCelestial))
             {
                 LabeledDoubleInput("Altitude", ref _departureAltitude, "km");
-                LabeledDoubleInput("Min. Inclination", ref _departureInclination, "°");
+                LabeledDoubleInput("Min. inclination", ref _departureInclination, "°");
             }
             LabeledDateInput("Earliest", ref _earliestDeparture);
             LabeledDateInput("Latest", ref _latestDeparture);
@@ -835,39 +837,35 @@ public class MainWindow : MonoBehaviour
     {
         using var scope = new GUILayout.HorizontalScope();
 
-        GUILayout.Label(label, ResultLabelStyle);
-        GUILayout.FlexibleSpace();
+        GUILayout.Label(label, ResultLabelStyle, GUILayout.Width(InputLabelWidth));
         var newText = GUILayout.TextField(
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
-            GUILayout.Width(100));
+            GUILayout.ExpandWidth(true));
         if (newText != input.Text)
         {
             input.Text = newText;
             OnInputChanged();
         }
-        GUILayout.Label(unit, ResultLabelStyle, GUILayout.Width(25));
+
+        GUILayout.Label(unit, ResultLabelStyle, GUILayout.Width(UnitLabelWidth));
     }
 
     private void LabeledDateInput(string label, ref DateInput input)
     {
         using var scope = new GUILayout.HorizontalScope();
 
-        GUILayout.Label(label, ResultLabelStyle);
-        GUILayout.FlexibleSpace();
+        GUILayout.Label(label, ResultLabelStyle, GUILayout.Width(InputLabelWidth));
 
         var newText = GUILayout.TextField(
             input.Text,
             input.Valid ? InputStyle : InvalidInputStyle,
-            GUILayout.Width(100));
+            GUILayout.ExpandWidth(true));
         if (newText != input.Text)
         {
             input.Text = newText;
             OnInputChanged();
         }
-        // Not using a GUILayout.Space(25) here, so I don't have to figure out what padding to use to make it the same
-        // size as a LabeledDoubleInput
-        GUILayout.Label("", ResultLabelStyle, GUILayout.Width(25));
     }
 
     #endregion
