@@ -7,7 +7,7 @@ inspired by TriggerAu's [original TWP](https://forum.kerbalspaceprogram.com/topi
 This mod depends on the dev version of MechJeb2. Specifically, it needs a build
 after #1356, which is the version that split MechJebLib into a separate DLL.
 
-![Screenshot of the in-game transfer planning window](https://github.com/Nazfib/TransferWindowPlanner2/blob/a7e9e2f84f2129146ec4eb54d496c1b8ab45a780/artwork/twp2-preview.png)
+![Screenshot of the in-game transfer planning window](https://github.com/Nazfib/TransferWindowPlanner2/blob/fc7a9c1b6016f1a50654fbba41868ef09bf7ccb1/artwork/twp2-preview.png)
 
 The source code for this mod is available on
 [GitHub](https://github.com/Nazfib/TransferWindowPlanner2)
