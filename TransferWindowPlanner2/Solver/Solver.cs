@@ -16,18 +16,18 @@ public partial class Solver : BackgroundJob<int>
 
     private readonly int _nDepartures;
     private readonly int _nArrivals;
-    private bool _hasPrincipia;
+    private readonly bool _hasPrincipia;
 
     private readonly V3[] _depPos;
     private readonly V3[] _depVel;
     private readonly V3[] _arrPos;
     private readonly V3[] _arrVel;
 
-    internal readonly double[,] DepΔv;
-    internal readonly double[,] ArrΔv;
-    internal readonly double[,] TotalΔv;
+    internal readonly float[,] DepΔv;
+    internal readonly float[,] ArrΔv;
+    internal readonly float[,] TotalΔv;
 
-    internal double MinDepΔv, MinArrΔv, MinTotalΔv;
+    internal float MinDepΔv, MinArrΔv, MinTotalΔv;
     internal (int, int) MinDepPoint, MinArrPoint, MinTotalPoint;
 
     private double _earliestDeparture;
@@ -55,10 +55,10 @@ public partial class Solver : BackgroundJob<int>
         _arrVel = new V3[nArrivals];
         // 400 * (4*24) = 37.5 kiB
 
-        DepΔv = new double[nDepartures, nArrivals];
-        ArrΔv = new double[nDepartures, nArrivals];
-        TotalΔv = new double[nDepartures, nArrivals];
-        // (400 * 400) * (3*8) = 3.66 MiB
+        DepΔv = new float[nDepartures, nArrivals];
+        ArrΔv = new float[nDepartures, nArrivals];
+        TotalΔv = new float[nDepartures, nArrivals];
+        // (400 * 400) * (3*4) = 1.83 MiB
 
         _hasPrincipia = hasPrincipia;
     }
@@ -153,7 +153,7 @@ public partial class Solver : BackgroundJob<int>
 
     private void SolveAllProblems()
     {
-        MinDepΔv = MinArrΔv = MinTotalΔv = double.PositiveInfinity;
+        MinDepΔv = MinArrΔv = MinTotalΔv = float.PositiveInfinity;
 
         for (var i = 0; i < _nDepartures; ++i)
         for (var j = 0; j < _nArrivals; ++j)
@@ -164,7 +164,7 @@ public partial class Solver : BackgroundJob<int>
             var timeOfFlight = tArr - tDep;
             if (timeOfFlight <= 0)
             {
-                DepΔv[i, j] = ArrΔv[i, j] = TotalΔv[i, j] = double.NaN;
+                DepΔv[i, j] = ArrΔv[i, j] = TotalΔv[i, j] = float.NaN;
                 continue;
             }
 
@@ -177,8 +177,8 @@ public partial class Solver : BackgroundJob<int>
 
             var depC3 = (depVel - depCbVel).sqrMagnitude;
             var depΔv = DepΔv[i, j] = _gravParameterDeparture > 0.0
-                ? ΔvFromC3(_gravParameterDeparture, _soiDeparture, depC3, _departurePeR, _departurePeR)
-                : Math.Sqrt(depC3);
+                ? (float)ΔvFromC3(_gravParameterDeparture, _soiDeparture, depC3, _departurePeR, _departurePeR)
+                : (float)Math.Sqrt(depC3);
             if (depΔv < MinDepΔv)
             {
                 MinDepΔv = depΔv;
@@ -187,9 +187,9 @@ public partial class Solver : BackgroundJob<int>
 
             var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
             var arrΔv = ArrΔv[i, j] = _gravParameterArrival > 0.0
-                ? ΔvFromC3(
+                ? (float)ΔvFromC3(
                     _gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize ? _arrivalPeR : _soiArrival)
-                : Math.Sqrt(arrC3);
+                : (float)Math.Sqrt(arrC3);
             if (arrΔv < MinArrΔv)
             {
                 MinArrΔv = arrΔv;

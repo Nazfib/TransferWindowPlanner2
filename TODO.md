@@ -15,6 +15,8 @@
 - [x] Make KAC alarm margin configurable
 - [x] Plot margin: Make limits configurable for both departure and arrival,
   separately. A linear limit, default ~1000 m/s, would probably be appropriate.
+- [ ] Investigate: is setting time-of-flight better than arrival date? By a
+  large margin, most of the Lambert calculation results are completely ignored!
 
 ## Maths
 

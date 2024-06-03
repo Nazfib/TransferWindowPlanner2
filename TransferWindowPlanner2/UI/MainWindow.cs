@@ -542,13 +542,13 @@ public class MainWindow : MonoBehaviour
         var i = (int)pos.x;
         var j = (int)pos.y;
         var (dep, arr) = _solver.TimesFor(i, j);
-        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, false)}"
-                      + $"\nArrival: {KSPUtil.PrintDateCompact(arr, false)}";
+        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, includeTime: false)}"
+                      + $"\nArrival: {KSPUtil.PrintDateCompact(arr, includeTime: false)}";
         if (dep < arr)
         {
-            tooltip += $"\nEject: {_solver.DepΔv[i, j].ToSI()}m/s"
-                       + $"\nInsert: {_solver.ArrΔv[i, j].ToSI()}m/s"
-                       + $"\nTotal: {_solver.TotalΔv[i, j].ToSI()}m/s";
+            tooltip += $"\nEject: {_solver.DepΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
+                       + $"\nInsert: {_solver.ArrΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
+                       + $"\nTotal: {_solver.TotalΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s";
         }
 
         if (Event.current.type == EventType.MouseUp && Event.current.button == 0) { UpdateTransferDetails((i, j)); }
@@ -697,11 +697,11 @@ public class MainWindow : MonoBehaviour
 
     private void OnSolverDone()
     {
-        DrawTexture(_plotDeparture, _solver.DepΔv, _solver.MinDepΔv, _solver.MinDepΔv + _plotMarginDep.Value);
-        DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinArrΔv + _plotMarginArr.Value);
+        DrawTexture(_plotDeparture, _solver.DepΔv, _solver.MinDepΔv, _solver.MinDepΔv + (float)_plotMarginDep.Value);
+        DrawTexture(_plotArrival, _solver.ArrΔv, _solver.MinArrΔv, _solver.MinArrΔv + (float)_plotMarginArr.Value);
         DrawTexture(
             _plotTotal, _solver.TotalΔv, _solver.MinTotalΔv,
-            _solver.MinTotalΔv + _plotMarginDep.Value + _plotMarginArr.Value);
+            _solver.MinTotalΔv + (float)_plotMarginDep.Value + (float)_plotMarginArr.Value);
         UpdateTransferDetails(_solver.MinTotalPoint);
         _plotIsDrawn = true;
 
@@ -711,13 +711,13 @@ public class MainWindow : MonoBehaviour
 
 
     // ReSharper disable once InconsistentNaming
-    private static void DrawTexture(Texture2D tex, double[,] Δv, double minΔv, double maxΔv)
+    private static void DrawTexture(Texture2D tex, float[,] Δv, float minΔv, float maxΔv)
     {
         for (var i = 0; i < PlotWidth; ++i)
         {
             for (var j = 0; j < PlotHeight; ++j)
             {
-                var color = ColorMap.MapColorReverse((float)Δv[i, j], (float)minΔv, (float)maxΔv);
+                var color = ColorMap.MapColorReverse(Δv[i, j], minΔv, maxΔv);
                 tex.SetPixel(i, PlotHeight - j - 1, color);
             }
         }
