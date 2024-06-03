@@ -32,6 +32,7 @@
         <Reference Include="UnityEngine" />
         <Reference Include="UnityEngine.AnimationModule" />
         <Reference Include="UnityEngine.CoreModule" />
+        <Reference Include="UnityEngine.ImageConversionModule" />
         <Reference Include="UnityEngine.IMGUIModule" />
         <Reference Include="UnityEngine.TextRenderingModule" />
         <Reference Include="ClickThroughBlocker">

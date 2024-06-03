@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using KSP.UI.Screens;
 using UnityEngine;
@@ -491,9 +492,16 @@ public class MainWindow : MonoBehaviour
         GUILayout.FlexibleSpace();
 
         if (GUILayout.Button("Reset times")) { ResetTimes(); }
-        using (new GuiEnabled(_errors.Count == 0 && !_solver.IsRunning()))
+        using (new GUILayout.HorizontalScope())
         {
-            if (GUILayout.Button(new GUIContent("Plot it!", string.Join("\n", _errors)))) { GeneratePlots(); }
+            using (new GuiEnabled(_errors.Count == 0 && !_solver.IsRunning()))
+            {
+                if (GUILayout.Button(new GUIContent("Plot it!", string.Join("\n", _errors)))) { GeneratePlots(); }
+            }
+            using (new GuiEnabled(_plotIsDrawn))
+            {
+                if (GUILayout.Button(new GUIContent("Save PNG"))) { SaveToPNG(); }
+            }
         }
 
         GUILayout.FlexibleSpace();
@@ -676,6 +684,20 @@ public class MainWindow : MonoBehaviour
         _maxTimeOfFlight.Value = Math.Ceiling(travelMax / KSPUtil.dateTimeFormatter.Day);
         // We set the input value/text directly; therefore, we need to call OnInputChanged manually as well.
         OnInputChanged();
+    }
+
+    private void SaveToPNG()
+    {
+        var tex = _selectedPlot switch
+        {
+            PlotType.Departure => _plotDeparture,
+            PlotType.Arrival => _plotArrival,
+            PlotType.Total => _plotTotal,
+            _ => _plotTotal,
+        };
+        var bytes = tex.EncodeToPNG();
+        var fileName = Path.Combine(KSPUtil.ApplicationRootPath, "Screenshots/TWP_Window.png");
+        File.WriteAllBytes(KSPUtil.GenerateFilePathWithDate(fileName), bytes);
     }
 
     #endregion
