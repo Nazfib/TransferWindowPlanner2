@@ -558,9 +558,9 @@ public class MainWindow : MonoBehaviour
         var (dep, tof) = _solver.TimesFor(i, j);
         var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, includeTime: false)}"
                       + $"\nArrival: {KSPUtil.PrintDateCompact(dep + tof, includeTime: false)}"
-                      + $"\nEject: {_solver.DepΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
-                      + $"\nInsert: {_solver.ArrΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s"
-                      + $"\nTotal: {_solver.TotalΔv[i, j].ToSI(maxPrecision: int.MaxValue)}m/s";
+                      + $"\nEject: {_solver.DepΔv[i, j].ToSI()}m/s"
+                      + $"\nInsert: {_solver.ArrΔv[i, j].ToSI()}m/s"
+                      + $"\nTotal: {_solver.TotalΔv[i, j].ToSI()}m/s";
 
         if (Event.current.type == EventType.MouseUp && Event.current.button == 0) { UpdateTransferDetails((i, j)); }
         return tooltip;
@@ -686,6 +686,7 @@ public class MainWindow : MonoBehaviour
         OnInputChanged();
     }
 
+    // ReSharper disable once UnusedMember.Local
     private void SaveToPNG()
     {
         var tex = _selectedPlot switch

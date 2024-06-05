@@ -5,7 +5,9 @@ routines in [MechJebLib](https://github.com/MuMech/MechJeb2). It is heavily
 inspired by TriggerAu's [original TWP](https://forum.kerbalspaceprogram.com/topic/84005--).
 
 This mod depends on the dev version of MechJeb2. Specifically, it needs a build
-after #1356, which is the version that split MechJebLib into a separate DLL.
+after #1406. See
+https://github.com/MuMech/MechJeb2/?tab=readme-ov-file#development-version-of-mechjeb
+for how to install this version of MechJeb using CKAN.
 
 ![Screenshot of the in-game transfer planning window](https://github.com/Nazfib/TransferWindowPlanner2/blob/fc7a9c1b6016f1a50654fbba41868ef09bf7ccb1/artwork/twp2-preview.png)
 
