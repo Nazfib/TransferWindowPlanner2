@@ -65,7 +65,7 @@ Departure: {KSPUtil.PrintDate(DepartureTime, IsShort)}
     C3: {DepartureC3 / 1e6:F2}km²/s²
     Δv: {DepartureΔv.ToSI()}m/s
 Arrival: {KSPUtil.PrintDate(ArrivalTime, IsShort)}
-    Altitude:{ArrivalPeriapsis.ToSI()}m
+    Altitude: {ArrivalPeriapsis.ToSI()}m
     Distance between bodies: {ArrivalDistance.ToSI()}m
     C3: {ArrivalC3 / 1e6:F2}km²/s²
     Δv: {ArrivalΔv.ToSI()}m/s
