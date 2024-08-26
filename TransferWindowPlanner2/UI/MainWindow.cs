@@ -25,7 +25,16 @@ public class MainWindow : MonoBehaviour
     private const string Icon = "TransferWindowPlanner2/icon";
     private const string Marker = "TransferWindowPlanner2/marker";
     private static readonly Vector2 MarkerSize = new Vector2(16, 16);
-    private Texture2D _markerTex = null!; // Initialized in Awake()
+    private Texture2D? _markerTex = null;
+
+    private Texture2D MarkerTex
+    {
+        get
+        {
+            if (_markerTex == null) { _markerTex = GameDatabase.Instance.GetTexture(Marker, false); }
+            return _markerTex;
+        }
+    }
 
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
@@ -156,7 +165,6 @@ public class MainWindow : MonoBehaviour
         Debug.Log(_hasPrincipia ? "[TWP2] Detected Principia" : "[TWP2] No Principia detected");
         _solver = new Solver(PlotWidth, PlotHeight, _hasPrincipia);
 
-        _markerTex = GameDatabase.Instance.GetTexture(Marker, false);
         _plotArrival = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
         _plotDeparture = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
         _plotTotal = new Texture2D(PlotWidth, PlotHeight, TextureFormat.ARGB32, false);
@@ -543,7 +551,7 @@ public class MainWindow : MonoBehaviour
     {
         var selected = new Vector2(_selectedTransfer.Item1, _selectedTransfer.Item2);
         var markerPosition = _plotPosition.position + selected - 0.5f * MarkerSize;
-        GUI.Box(new Rect(markerPosition, MarkerSize), _markerTex, GUIStyle.none);
+        GUI.Box(new Rect(markerPosition, MarkerSize), MarkerTex, GUIStyle.none);
     }
 
     private string PlotHandleMouse()
