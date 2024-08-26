@@ -2,7 +2,7 @@
 
 VERSION="0.2.0-preview"
 
-msbuild /property:Configuration=Release
+dotnet build --configuration Release
 
 rm -rf "release/TransferWindowPlanner2"
 mkdir -p "release/TransferWindowPlanner2"
