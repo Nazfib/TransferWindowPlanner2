@@ -53,6 +53,7 @@ public class MainWindow : MonoBehaviour
     private ApplicationLauncherButton? _button;
 
     private bool _showMainWindow;
+    private const string WindowTitle = "Transfer Window Planner 2";
     internal Rect WinPos = new Rect(450, 100, WindowWidth, WindowHeight);
     private Rect _plotPosition;
     private string _tooltip = "";
@@ -223,7 +224,7 @@ public class MainWindow : MonoBehaviour
         GUI.skin = HighLogic.Skin;
         if (!_showMainWindow) { return; }
 
-        WinPos = ClickThruBlocker.GUILayoutWindow(GetHashCode(), WinPos, WindowGUI, ModName);
+        WinPos = ClickThruBlocker.GUILayoutWindow(GetHashCode(), WinPos, WindowGUI, WindowTitle);
 
         if (!string.IsNullOrEmpty(_tooltip))
         {
