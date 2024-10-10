@@ -30,7 +30,7 @@ public class BodySelectionWindow : MonoBehaviour
         {
             if (_which == value) { return; }
             _which = value;
-            if (value is SelectionKind.Central) { _showVessels = false; }
+            if (value is SelectionKind.Central || value is SelectionKind.Departure) { _showVessels = false; }
             _isDirty = true;
         }
     }
