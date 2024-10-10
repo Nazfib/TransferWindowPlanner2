@@ -1,6 +1,7 @@
 #!/bin/sh
+set -eux
 
-VERSION="0.2.0-preview"
+VERSION="0.3.0-preview"
 
 dotnet build --configuration Release
 
@@ -14,4 +15,3 @@ cp "../LICENSE" "../LICENSE.TransferWindowPlanner" "../LICENSE.ClickThroughBlock
 cp "../README.md" "TransferWindowPlanner2/README.md"
 
 zip -FS -r "TransferWindowPlanner2_v${VERSION}.zip" "TransferWindowPlanner2"
-
