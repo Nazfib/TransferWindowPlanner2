@@ -17,6 +17,8 @@ public readonly struct Endpoint
     public bool IsCelestial => Celestial != null;
     public bool IsVessel => Vessel != null;
 
+    public bool IsNull => Celestial == null && Vessel == null;
+
     public string Name => Celestial != null
         ? Celestial.displayName.LocalizeRemoveGender()
         : Vessel != null

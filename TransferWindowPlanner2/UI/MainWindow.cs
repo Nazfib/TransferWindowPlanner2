@@ -174,7 +174,13 @@ public class MainWindow : MonoBehaviour
     protected void Start()
     {
         KACWrapper.InitKACWrapper();
+        InitStyles();
+        ResetInputs();
+        _bodySelectionWindow = BodySelectionWindow.Setup(this);
+    }
 
+    private void ResetInputs()
+    {
         var departureCb = FlightGlobals.GetHomeBody();
         var centralCb = FlightGlobals.GetHomeBody().referenceBody;
         var arrivalCb = FlightGlobals.Bodies.Find(
@@ -193,7 +199,6 @@ public class MainWindow : MonoBehaviour
         _arrivalBody = new Endpoint(arrivalCb);
         _arrivalAltitude.Max = 1e-3 * (arrivalCb.sphereOfInfluence - arrivalCb.Radius);
 
-        _bodySelectionWindow = BodySelectionWindow.Setup(this);
         ResetTimes();
 
         // From the Unity docs: Do not assume that the texture will be created and available in Awake. All texture
@@ -202,7 +207,8 @@ public class MainWindow : MonoBehaviour
         ClearTexture(_plotArrival);
         ClearTexture(_plotTotal);
 
-        InitStyles();
+        _transferDetails = new TransferDetails();
+        _plotIsDrawn = false;
     }
 
     public void OnDestroy()
@@ -297,6 +303,13 @@ public class MainWindow : MonoBehaviour
 
     private void ShowWindow()
     {
+        // Issue #1: When the origin or target was set to a vessel, and then a scene change occurs, both  the celestial
+        // and the vessel are null (Unity lifetime check); this is an invalid state, and causes an
+        // InvalidOperationException to be thrown in every OnGUI call (i.e. multiple times per frame).
+        // When the main window is opened, and the departure or arrival bodies are null, reset the inputs. This will
+        // reset the window to a valid state.
+        if (DepartureBody.IsNull || ArrivalBody.IsNull) { ResetInputs(); }
+
         _showMainWindow = true;
     }
 
