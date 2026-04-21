@@ -130,11 +130,11 @@ public class MainWindow : MonoBehaviour
     // reset them to a valid state. This is done to avoid calling any KSP/Unity APIs during class construction.
     private DateInput _earliestDeparture = new DateInput();
     private DateInput _latestDeparture = new DateInput();
-    private DoubleInput _minTimeOfFlight = new DoubleInput(100, min: 0.0);
-    private DoubleInput _maxTimeOfFlight = new DoubleInput(400, min: 0.0);
+    private DoubleInput _minTimeOfFlight = new DoubleInput(100, min: 0.0, minInclusive: false);
+    private DoubleInput _maxTimeOfFlight = new DoubleInput(400, min: 0.0, minInclusive: false);
 
-    private DoubleInput _plotMarginDep = new DoubleInput(1e3, min: 0);
-    private DoubleInput _plotMarginArr = new DoubleInput(1e3, min: 0);
+    private DoubleInput _plotMarginDep = new DoubleInput(1e3, min: 0, minInclusive: false);
+    private DoubleInput _plotMarginArr = new DoubleInput(1e3, min: 0, minInclusive: false);
 
     private DoubleInput _alarmMargin = new DoubleInput(value: 24, min: 0); // Default 24h; should be 6h for stock?
     private readonly List<string> _errors = new List<string>();

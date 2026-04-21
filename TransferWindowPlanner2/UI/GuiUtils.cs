@@ -10,13 +10,15 @@ public static class GuiUtils
 {
     public struct DoubleInput
     {
-        public DoubleInput(double value, double min = double.NegativeInfinity, double max = double.PositiveInfinity)
+        public DoubleInput(double value, double min = double.NegativeInfinity, double max = double.PositiveInfinity, bool minInclusive = true, bool maxInclusive = true)
         {
             _text = value.ToString(CultureInfo.CurrentCulture);
             _value = value;
             Parsed = true;
             Min = min;
             Max = max;
+            MinInclusive = minInclusive;
+            MaxInclusive = maxInclusive;
         }
 
         private string _text;
@@ -24,6 +26,7 @@ public static class GuiUtils
         public bool Parsed { get; private set; }
 
         public double Min, Max;
+        public bool MinInclusive, MaxInclusive;
 
         public string Text
         {
@@ -52,7 +55,9 @@ public static class GuiUtils
             }
         }
 
-        public bool Valid => Parsed && Min <= _value && _value <= Max;
+        public bool Valid => Parsed &&
+                             (MinInclusive ? Min <= _value : Min < _value) &&
+                             (MaxInclusive ? _value <= Max : _value < Max);
     }
 
     public struct DateInput
