@@ -69,7 +69,9 @@ public class MainWindow : MonoBehaviour
 
     private enum PlotType
     {
-        Departure = 0, Arrival = 1, Total = 2,
+        Departure = 0,
+        Arrival = 1,
+        Total = 2,
     }
 
     private PlotType _selectedPlot = PlotType.Total;
@@ -529,7 +531,7 @@ public class MainWindow : MonoBehaviour
         if (GUILayout.Button("Reset times")) { ResetTimes(); }
         using (new GUILayout.HorizontalScope())
         {
-            using (new GuiEnabled(_errors.Count == 0 && !_solver.IsRunning()))
+            using (new GuiEnabled(_errors.Count == 0 && !_solver.IsRunning))
             {
                 if (GUILayout.Button(new GUIContent("Plot it!", string.Join("\n", _errors)))) { GeneratePlots(); }
             }
@@ -544,7 +546,7 @@ public class MainWindow : MonoBehaviour
 
     private void ShowPlot()
     {
-        if (_plotIsUpdating && _solver.ResultReady) { OnSolverDone(); }
+        if (_plotIsUpdating && _solver.IsCompleted) { OnSolverDone(); }
 
         using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
         {
@@ -742,7 +744,7 @@ public class MainWindow : MonoBehaviour
 
     private void GeneratePlots()
     {
-        if (_solver.IsRunning())
+        if (_solver.IsRunning)
         {
             Debug.LogError($"Solver is already working!");
             return;
@@ -770,6 +772,10 @@ public class MainWindow : MonoBehaviour
 
         // Reset it for the next time
         _plotIsUpdating = false;
+        if (!_solver.TryMarkReady())
+        {
+            throw new Exception("[TWP2] Failed to mark AsyncJob as ready");
+        }
     }
 
 

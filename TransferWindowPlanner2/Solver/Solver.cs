@@ -9,7 +9,7 @@ namespace TransferWindowPlanner2.Solver
 {
 using static MoreMaths;
 
-public partial class Solver : BackgroundJob<int>
+public partial class Solver : AsyncJob
 {
     private Endpoint _origin;
     private Endpoint _destination;
@@ -98,7 +98,10 @@ public partial class Solver : BackgroundJob<int>
             (_depPos[i], _depVel[i]) = BodyStateVectorsAt(origin, DepartureTime(i));
         }
 
-        StartJob(null);
+        if (!TryStartJob(null))
+        {
+            throw new Exception("[TWP2] Failed to start AsyncJob");
+        }
     }
 
     private (V3, V3) BodyStateVectorsAt(Endpoint body, double time)
@@ -194,10 +197,9 @@ public partial class Solver : BackgroundJob<int>
         }
     }
 
-    protected override int Run(object? o)
+    public override void Run(object? o)
     {
         SolveAllProblems();
-        return 0;
     }
 }
 }
