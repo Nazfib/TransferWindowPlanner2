@@ -6,6 +6,7 @@
         <Nullable>enable</Nullable>
         <Version>0.3.0</Version>
         <Authors>Nazfib</Authors>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
     </PropertyGroup>
 
     <ItemGroup>
@@ -44,13 +45,6 @@
         <Reference Include="MechJebLibBindings">
             <HintPath>$(KSPDir)\GameData\MechJeb2\Plugins\MechJebLibBindings.dll</HintPath>
         </Reference>
-        <AssemblyAttribute Include="KSPAssemblyDependency">
-            <_Parameter1>ClickThroughBlocker</_Parameter1>
-            <_Parameter2>1</_Parameter2>
-            <_Parameter2_IsLiteral>true</_Parameter2_IsLiteral>
-            <_Parameter3>0</_Parameter3>
-            <_Parameter3_IsLiteral>true</_Parameter3_IsLiteral>
-        </AssemblyAttribute>
     </ItemGroup>
 
     <Target Name="CopyToKSP" AfterTargets="Build">
