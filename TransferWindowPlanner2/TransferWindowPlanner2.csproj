@@ -6,19 +6,28 @@
         <Nullable>enable</Nullable>
         <Version>0.3.0</Version>
         <Authors>Nazfib</Authors>
+
         <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <DisableImplicitFrameworkReferences>true</DisableImplicitFrameworkReferences>
     </PropertyGroup>
 
-    <ItemGroup>
-        <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3">
-            <PrivateAssets>all</PrivateAssets>
-            <IncludeAssets>runtime;build;native;contentfiles;analyzers;buildtransitive</IncludeAssets>
-        </PackageReference>
-    </ItemGroup>
+    <PropertyGroup Condition="'$(KspDir)' == ''">
+        <KspDir Condition="'$(OS)' == 'Windows_NT'">$([System.Environment]::GetEnvironmentVariable('ProgramFiles(x86)'))\Steam\steamapps\common\Kerbal Space Program</KspDir>
+        <KspDir Condition="'$(OS)' != 'Windows_NT' And Exists('/Library')">$(HOME)/Library/Application Support/Steam/steamapps/common/Kerbal Space Program</KspDir>
+        <KspDir Condition="'$(OS)' != 'Windows_NT' And !Exists('/Library')">$(HOME)/.steam/steam/steamapps/common/Kerbal Space Program</KspDir>
+    </PropertyGroup>
+
+    <!-- Derive KspData from KspDir if not explicitly set. -->
+    <PropertyGroup Condition="'$(KspData)' == ''">
+        <KspData Condition="'$(OS)' == 'Windows_NT'">$(KspDir)\KSP_x64_Data</KspData>
+        <!-- Mac: KSP ships as an .app bundle -->
+        <KspData Condition="'$(OS)' != 'Windows_NT' And Exists('$(KspDir)/KSP.app')">$(KspDir)/KSP.app/Contents/Resources/Data</KspData>
+        <!-- Linux: KSP_Data sits directly under KspDir -->
+        <KspData Condition="'$(OS)' != 'Windows_NT' And !Exists('$(KspDir)/KSP.app')">$(KspDir)/KSP_Data</KspData>
+    </PropertyGroup>
 
     <PropertyGroup>
-        <KSPDir>..\..\_Versions\1.12.5</KSPDir>
-        <AssemblySearchPaths>$(KSPDir)\KSP_Data\Managed;$(AssemblySearchPaths)</AssemblySearchPaths>
+        <FrameworkPathOverride>$(KspData)/Managed</FrameworkPathOverride>
     </PropertyGroup>
 
     <ItemDefinitionGroup>
@@ -29,30 +38,26 @@
     </ItemDefinitionGroup>
 
     <ItemGroup>
-        <Reference Include="Assembly-CSharp" />
-        <Reference Include="UnityEngine" />
-        <Reference Include="UnityEngine.AnimationModule" />
-        <Reference Include="UnityEngine.CoreModule" />
-        <Reference Include="UnityEngine.ImageConversionModule" />
-        <Reference Include="UnityEngine.IMGUIModule" />
-        <Reference Include="UnityEngine.TextRenderingModule" />
+        <Reference Include="Assembly-CSharp"/>
+        <Reference Include="System"/>
+        <Reference Include="UnityEngine"/>
+        <Reference Include="UnityEngine.AnimationModule"/>
+        <Reference Include="UnityEngine.CoreModule"/>
+        <Reference Include="UnityEngine.ImageConversionModule"/>
+        <Reference Include="UnityEngine.IMGUIModule"/>
+        <Reference Include="UnityEngine.TextRenderingModule"/>
         <Reference Include="ClickThroughBlocker">
-            <HintPath>$(KSPDir)\GameData\000_ClickThroughBlocker\Plugins\ClickThroughBlocker.dll</HintPath>
+            <HintPath>$(KspDir)\GameData\000_ClickThroughBlocker\Plugins\ClickThroughBlocker.dll</HintPath>
         </Reference>
         <Reference Include="MechJebLib">
-            <HintPath>$(KSPDir)\GameData\MechJeb2\Plugins\MechJebLib.dll</HintPath>
+            <HintPath>$(KspDir)\GameData\MechJeb2\Plugins\MechJebLib.dll</HintPath>
         </Reference>
         <Reference Include="MechJebLibBindings">
-            <HintPath>$(KSPDir)\GameData\MechJeb2\Plugins\MechJebLibBindings.dll</HintPath>
+            <HintPath>$(KspDir)\GameData\MechJeb2\Plugins\MechJebLibBindings.dll</HintPath>
         </Reference>
     </ItemGroup>
 
-    <Target Name="CopyToKSP" AfterTargets="Build">
-        <ItemGroup>
-            <SourceFiles Include="..\GameData\**\*.*" />
-            <DestinationFiles Include="@(SourceFiles -> '$(KSPDir)\GameData\%(RecursiveDir)%(Filename)%(Extension)')" />
-        </ItemGroup>
-        <Copy SourceFiles="@(SourceFiles)" DestinationFiles="@(DestinationFiles)" SkipUnchangedFiles="true" />
-        <Copy SourceFiles="$(TargetPath)" DestinationFolder="$(KSPDir)\GameData\TransferWindowPlanner2" />
+    <Target Name="CopyToGameData" AfterTargets="Build">
+        <Copy SourceFiles="$(TargetPath)" DestinationFolder="../GameData/TransferWindowPlanner2/"/>
     </Target>
 </Project>
