@@ -113,18 +113,18 @@ public class MainWindow : MonoBehaviour
             _arrivalBody = value;
             if (_arrivalBody.IsCelestial)
             {
-                _arrivalAltitude.Max =
+                _arrivalPeriapsis.Max = _arrivalApoapsis.Max =
                     1e-3 * (_arrivalBody.Celestial!.sphereOfInfluence - _arrivalBody.Celestial!.Radius);
             }
-            else { _arrivalAltitude.Max = double.PositiveInfinity; }
+            else { _arrivalPeriapsis.Max = _arrivalApoapsis.Max = double.PositiveInfinity; }
             OnInputChanged();
         }
     }
 
     private DoubleInput _departureAltitude = new DoubleInput(100.0, 0.0);
     private DoubleInput _departureInclination = new DoubleInput(0.0, 0.0, 90.0);
-    private DoubleInput _arrivalAltitude = new DoubleInput(100.0, 0.0);
-    private bool _circularize = true;
+    private DoubleInput _arrivalPeriapsis = new DoubleInput(100.0, 0.0);
+    private DoubleInput _arrivalApoapsis = new DoubleInput(100.0, 0.0);
 
     // These are initialized into a default invalid state. During Start(), ResetTimes() is called which will then
     // reset them to a valid state. This is done to avoid calling any KSP/Unity APIs during class construction.
@@ -197,7 +197,7 @@ public class MainWindow : MonoBehaviour
         _departureBody = new Endpoint(departureCb);
         _departureAltitude.Max = 1e-3 * (departureCb.sphereOfInfluence - departureCb.Radius);
         _arrivalBody = new Endpoint(arrivalCb);
-        _arrivalAltitude.Max = 1e-3 * (arrivalCb.sphereOfInfluence - arrivalCb.Radius);
+        _arrivalPeriapsis.Max = 1e-3 * (arrivalCb.sphereOfInfluence - arrivalCb.Radius);
 
         ResetTimes();
 
@@ -402,13 +402,26 @@ public class MainWindow : MonoBehaviour
 
         if (ArrivalBody.IsCelestial)
         {
-            if (!_arrivalAltitude.Parsed || _arrivalAltitude.Value < 0)
+            if (!_arrivalPeriapsis.Parsed || _arrivalPeriapsis.Value < 0)
             {
-                _errors.Add($"Arrival altitude should be a positive number ({_arrivalAltitude.Text})");
+                _errors.Add($"Arrival altitude should be a positive number ({_arrivalPeriapsis.Text})");
             }
-            else if (_arrivalAltitude.Value > _arrivalAltitude.Max)
+            else if (_arrivalPeriapsis.Value > _arrivalPeriapsis.Max)
             {
-                _errors.Add($"{_arrivalAltitude.Value} km is outside the sphere of influence of {ArrivalBody.Name}");
+                _errors.Add($"{_arrivalPeriapsis.Value} km is outside the sphere of influence of {ArrivalBody.Name}");
+            }
+
+            if (!_arrivalApoapsis.Parsed || _arrivalApoapsis.Value < 0)
+            {
+                _errors.Add($"Arrival apoapsis should be a positive number ({_arrivalApoapsis.Text})");
+            }
+            else if (_arrivalApoapsis.Value > _arrivalApoapsis.Max)
+            {
+                _errors.Add($"{_arrivalApoapsis.Value} km is outside the sphere of influence of {ArrivalBody.Name}");
+            }
+            else if (_arrivalApoapsis.Value < _arrivalPeriapsis.Value)
+            {
+                _errors.Add("Apoapsis must be greater than periapsis");
             }
         }
 
@@ -500,8 +513,8 @@ public class MainWindow : MonoBehaviour
             }
             using (new GuiEnabled(ArrivalBody.IsCelestial))
             {
-                LabeledDoubleInput("Altitude", ref _arrivalAltitude, "km");
-                _circularize = GUILayout.Toggle(_circularize, "Circularize");
+                LabeledDoubleInput("Periapsis", ref _arrivalPeriapsis, "km");
+                LabeledDoubleInput("Apoapsis", ref _arrivalApoapsis, "km");
             }
             LabeledDoubleInput("Min. transfer time", ref _minTimeOfFlight, "days");
             LabeledDoubleInput("Max. transfer time", ref _maxTimeOfFlight, "days");
@@ -742,7 +755,7 @@ public class MainWindow : MonoBehaviour
             _minTimeOfFlight.Value * KSPUtil.dateTimeFormatter.Day,
             _maxTimeOfFlight.Value * KSPUtil.dateTimeFormatter.Day,
             _departureAltitude.Value * 1e3, Deg2Rad(_departureInclination.Value),
-            _arrivalAltitude.Value * 1e3, _circularize);
+            _arrivalPeriapsis.Value * 1e3, _arrivalApoapsis.Value * 1e3);
     }
 
     private void OnSolverDone()

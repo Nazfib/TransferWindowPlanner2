@@ -35,7 +35,7 @@ public partial class Solver : BackgroundJob<int>
     private double _departurePeR;
     private double _departureMinInc;
     private double _arrivalPeR;
-    private bool _circularize;
+    private double _arrivalApR;
     private double _soiDeparture;
     private double _soiArrival;
     private double _gravParameterTransfer;
@@ -64,7 +64,7 @@ public partial class Solver : BackgroundJob<int>
         double earliestDeparture, double latestDeparture,
         double minTimeOfFlight, double maxTimeOfFlight,
         double departureAltitude, double departureMinInclination,
-        double arrivalAltitude, bool circularize)
+        double arrivalPeriapsis, double arrivalApoapsis)
     {
         _origin = origin;
         _destination = destination;
@@ -84,8 +84,8 @@ public partial class Solver : BackgroundJob<int>
         else { _departurePeR = _soiDeparture = _gravParameterDeparture = 0.0; }
         if (destination.IsCelestial)
         {
-            _arrivalPeR = destination.Celestial!.Radius + arrivalAltitude;
-            _circularize = circularize;
+            _arrivalPeR = destination.Celestial!.Radius + arrivalPeriapsis;
+            _arrivalApR = destination.Celestial!.Radius + arrivalApoapsis;
             _soiArrival = destination.Celestial!.sphereOfInfluence;
             _gravParameterArrival = destination.Celestial!.gravParameter;
         }
@@ -177,7 +177,7 @@ public partial class Solver : BackgroundJob<int>
             var arrC3 = (arrVel - arrCbVel).sqrMagnitude;
             var arrΔv = ArrΔv[i, j] = _gravParameterArrival > 0.0
                 ? (float)ΔvFromC3(
-                    _gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _circularize ? _arrivalPeR : _soiArrival)
+                    _gravParameterArrival, _soiArrival, arrC3, _arrivalPeR, _arrivalApR)
                 : (float)Math.Sqrt(arrC3);
             if (arrΔv < MinArrΔv)
             {

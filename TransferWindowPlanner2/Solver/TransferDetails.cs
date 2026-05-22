@@ -103,7 +103,7 @@ public partial class Solver
                 _destination.Celestial!.gravParameter,
                 _hasPrincipia ? double.PositiveInfinity : _destination.Celestial!.sphereOfInfluence,
                 arrC3,
-                _arrivalPeR, _circularize ? _arrivalPeR : _destination.Celestial!.sphereOfInfluence)
+                _arrivalPeR, _arrivalApR)
             : Sqrt(arrC3);
         if (double.IsNaN(depΔv) || double.IsNaN(arrΔv)) { return new TransferDetails { IsValid = false }; }
 
