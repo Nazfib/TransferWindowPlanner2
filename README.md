@@ -4,10 +4,10 @@ This is a new transfer window planning mod for KSP, based on the mathematical
 routines in [MechJebLib](https://github.com/MuMech/MechJeb2). It is heavily
 inspired by TriggerAu's [original TWP](https://forum.kerbalspaceprogram.com/topic/84005--).
 
-This mod depends on the dev version of MechJeb2. Specifically, it needs a build
-after #1406. See
-https://github.com/MuMech/MechJeb2/?tab=readme-ov-file#development-version-of-mechjeb
-for how to install this version of MechJeb using CKAN.
+This mod requires a recent (at least version 2.15) release of MechJeb2.
+If you have the dev version of MechJeb, download the `-devjeb` zip file;
+if you have the regular version of MechJeb, download the regular zip
+file.
 
 ![Screenshot of the in-game transfer planning window](https://github.com/Nazfib/TransferWindowPlanner2/blob/fc7a9c1b6016f1a50654fbba41868ef09bf7ccb1/artwork/twp2-preview.png)
 
