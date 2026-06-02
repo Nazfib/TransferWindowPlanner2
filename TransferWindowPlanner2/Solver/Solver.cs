@@ -165,7 +165,8 @@ public partial class Solver : AsyncJob
             var depCbVel = _depVel[i];
             var (arrPos, arrCbVel) = BodyStateVectorsAt(_destination, tArr);
 
-            var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, depCbVel, arrPos, timeOfFlight, 0);
+            var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, arrPos, timeOfFlight,
+                direction: TransferGeometry.Prograde, nrev: 0, h: V3.Cross(depPos, depCbVel));
 
             var depC3 = (depVel - depCbVel).sqrMagnitude;
             var depΔv = DepΔv[i, j] = _gravParameterDeparture > 0.0

@@ -82,8 +82,8 @@ public partial class Solver
         var (depPos, depCbVel) = BodyStateVectorsAt(_origin, tDep);
         var (arrPos, arrCbVel) = BodyStateVectorsAt(_destination, tArr);
         var timeOfFlight = tArr - tDep;
-        var (depVel, arrVel) = Gooding.Solve(
-            _origin.Orbit.referenceBody.gravParameter, depPos, depCbVel, arrPos, timeOfFlight, 0);
+        var (depVel, arrVel) = Gooding.Solve(_gravParameterTransfer, depPos, arrPos, timeOfFlight,
+            direction: TransferGeometry.Prograde, nrev: 0, h: V3.Cross(depPos, depCbVel));
 
         var depVInf = depVel - depCbVel;
         var arrVInf = arrVel - arrCbVel;
