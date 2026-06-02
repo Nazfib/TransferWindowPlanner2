@@ -5,7 +5,7 @@ VERSION="0.5.0"
 
 dotnet build --configuration Release
 
-FILENAME="TransferWindowPlanner2_v${VERSION}.zip"
+FILENAME="TransferWindowPlanner2_v${VERSION}-devjeb.zip"
 if [ -f "release/$FILENAME" ]; then
   echo "Zip file already exists!"
   exit 1
