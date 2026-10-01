@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eux
 
-VERSION="0.5.1"
+VERSION="1.0.0"
 
 dotnet build --configuration Release
 
