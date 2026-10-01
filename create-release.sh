@@ -13,6 +13,7 @@ fi
 
 zip -r "$FILENAME" \
   "GameData" \
+  "TransferWindowPlanner2.ckan" \
   "LICENSE" \
   "LICENSE.ClickThroughBlocker" \
   "LICENSE.TransferWindowPlanner" \
