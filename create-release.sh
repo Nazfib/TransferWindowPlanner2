@@ -1,11 +1,11 @@
 #!/bin/sh
 set -eux
 
-VERSION="0.5.1c"
+VERSION="1.0.0-devjeb"
 
 dotnet build --configuration Release
 
-FILENAME="TransferWindowPlanner2_v${VERSION}-devjeb.zip"
+FILENAME="TransferWindowPlanner2_v${VERSION}.zip"
 if [ -f "release/$FILENAME" ]; then
   echo "Zip file already exists!"
   exit 1
@@ -13,6 +13,7 @@ fi
 
 zip -r "$FILENAME" \
   "GameData" \
+  "TransferWindowPlanner2.ckan" \
   "LICENSE" \
   "LICENSE.ClickThroughBlocker" \
   "LICENSE.TransferWindowPlanner" \
