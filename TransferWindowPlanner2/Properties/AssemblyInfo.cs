@@ -6,4 +6,5 @@ using System.Reflection;
 [assembly: AssemblyFileVersion("1.0.0.0")]
 
 [assembly: KSPAssembly("TransferWindowPlanner2", 1, 0, 0)]
+[assembly: KSPAssemblyDependency("MechJeb2", 2, 16, 0)]
 [assembly: KSPAssemblyDependency("ClickThroughBlocker", 1, 0)]

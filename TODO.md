@@ -29,6 +29,11 @@
   of the origin or target
   - This should the `Orbit.EndUT` field; but does it work for un-focussed
     vessels?
+- [x] Change Lambert solver from Gooding to Russell. Lamont recently implemented
+  a much faster and more robust Lambert problem solver by Russell; let's move to
+  that, and check if we need to handle any exceptions.
+- [x] Check that we're not using methods that have been removed in the latest
+  round of updates.
 
 ## Principia
 

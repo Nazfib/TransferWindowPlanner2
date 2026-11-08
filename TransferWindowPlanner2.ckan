@@ -1,5 +1,5 @@
 depends:
   - name: MechJeb2-dev
-    min_version: 2.16.0.0-1717
+    min_version: 2.16.0.0-1852
   - name: ClickThroughBlocker
 
