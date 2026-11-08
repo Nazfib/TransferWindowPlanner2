@@ -203,19 +203,25 @@ public class MapAngleRenderer : MonoBehaviour
             ScaledSpace.LocalToScaledSpace(
                 center + length * VectorToUnityFrame(PeriapsisDirection.normalized)));
 
-        GUI.Label(
-            new Rect(
-                periapsis.x - 50,
-                Screen.height - periapsis.y - 15,
-                100, 30),
-            $"Burn position", _styleLabelEnd);
+        if (periapsis.z > 0)
+        {
+            GUI.Label(
+                new Rect(
+                    periapsis.x - 50,
+                    Screen.height - periapsis.y - 15,
+                    100, 30),
+                $"Burn position", _styleLabelEnd);
+        }
 
-        GUI.Label(
-            new Rect(
-                asymptote.x - 50,
-                Screen.height - asymptote.y - 15,
-                100, 30),
-            "Escape direction", _styleLabelTarget);
+        if (asymptote.z > 0)
+        {
+            GUI.Label(
+                new Rect(
+                    asymptote.x - 50,
+                    Screen.height - asymptote.y - 15,
+                    100, 30),
+                "Escape direction", _styleLabelTarget);
+        }
     }
 }
 }
