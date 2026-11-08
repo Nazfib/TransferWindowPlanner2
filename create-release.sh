@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eux
 
-VERSION="1.0.0-devjeb"
+VERSION="1.1.0-devjeb"
 
 dotnet build --configuration Release
 
