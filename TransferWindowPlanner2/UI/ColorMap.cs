@@ -6,7 +6,7 @@ public static class ColorMap
 {
     public static Color MapColor(float value, float min, float max)
     {
-        if (!float.IsFinite(value)) { return ErrorColor; }
+        if (float.IsInfinity(value)) { return ErrorColor; }
 
         var t = Mathf.RoundToInt(Mathf.InverseLerp(min, max, value) * 255);
         if (t < 0) { t = 0; }
