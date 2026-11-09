@@ -86,6 +86,26 @@ public static class GuiUtils
             }
         }
 
+        // Drag-zoom can select fractions of a day. Keep the full UT value for the
+        // solver, while displaying an editable hour/minute/second suffix.
+        public void SetWithTime(double ut)
+        {
+            _ut = ut;
+            var daySeconds = KSPUtil.dateTimeFormatter.Day;
+            var hourSeconds = KSPUtil.dateTimeFormatter.Hour;
+            var minuteSeconds = KSPUtil.dateTimeFormatter.Minute;
+            var elapsed = ut - Math.Floor(ut / daySeconds) * daySeconds;
+            var hours = (int)Math.Floor(elapsed / hourSeconds);
+            elapsed -= hours * hourSeconds;
+            var minutes = (int)Math.Floor(elapsed / minuteSeconds);
+            elapsed -= minutes * minuteSeconds;
+            var seconds = (int)Math.Floor(elapsed);
+
+            _text = KSPUtil.PrintDateCompact(ut, includeTime: false).Trim()
+                    + $" {hours:00}:{minutes:00}:{seconds:00}";
+            Valid = true;
+        }
+
         public string Text
         {
             get => _text;
@@ -111,7 +131,8 @@ public static class GuiUtils
                 var year = Localizer.Format("#autoLOC_6002344");
                 var day = Localizer.Format("#autoLOC_6002345");
                 _stockDateRegex = new Regex(
-                    $@"^{year}(\d+),?\s*{day}(\d+)$", RegexOptions.Compiled | RegexOptions.IgnoreCase);
+                    $@"^{Regex.Escape(year)}(\d+),?\s*{Regex.Escape(day)}(\d+)(?:\s+(\d{{1,2}}):(\d{{2}})(?::(\d{{2}}))?)?$",
+                    RegexOptions.Compiled | RegexOptions.IgnoreCase);
             }
 
             var match = _stockDateRegex.Match(text);
@@ -127,13 +148,28 @@ public static class GuiUtils
                     return false;
                 }
                 ut = (year - 1) * KSPUtil.dateTimeFormatter.Year + (day - 1) * KSPUtil.dateTimeFormatter.Day;
+
+                if (match.Groups[3].Success)
+                {
+                    var hour = int.Parse(match.Groups[3].Value);
+                    var minute = int.Parse(match.Groups[4].Value);
+                    var second = match.Groups[5].Success ? int.Parse(match.Groups[5].Value) : 0;
+                    if (hour >= KSPUtil.dateTimeFormatter.Day / KSPUtil.dateTimeFormatter.Hour ||
+                        minute >= 60 || second >= 60)
+                    {
+                        ut = 0.0;
+                        return false;
+                    }
+                    ut += hour * KSPUtil.dateTimeFormatter.Hour +
+                          minute * KSPUtil.dateTimeFormatter.Minute + second;
+                }
                 return true;
             }
 
             // RSSTimeFormatter: printed as yyyy-MM-dd
             // When parsing, allow omitting the leading zero in the day and month values.
             if (DateTime.TryParseExact(
-                    text, "yyyy-M-d", CultureInfo.InvariantCulture,
+                    text, new[] { "yyyy-M-d", "yyyy-M-d H:mm", "yyyy-M-d H:mm:ss" }, CultureInfo.InvariantCulture,
                     DateTimeStyles.None, out var result))
             {
                 var epoch = new DateTime(1951, 1, 1);
