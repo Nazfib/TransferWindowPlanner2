@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 using KSP.UI.Screens;
 using UnityEngine;
@@ -38,8 +39,16 @@ public class MainWindow : MonoBehaviour
 
     private const int PlotWidth = 500;
     private const int PlotHeight = 400;
-    private const int WindowWidth = 750;
-    private const int WindowHeight = 600;
+    // Width of the three mode buttons combined; leaves room for Show scales.
+    private const int PlotModeSelectorWidth = 300;
+    private const int InputPanelWidth = 250;
+    private const int ElapsedAxisWidth = 94;
+    private const int DepartureAxisHeight = 50;
+    private const float MinZoomDragPixels = 6f;
+    // The axes use their own layout space; do not reduce the plot's 500x400 resolution.
+    private const int WindowWidth = InputPanelWidth + ElapsedAxisWidth + PlotWidth + 20;
+    private const int WindowHeight = 650;
+    private int DisplayWindowWidth => WindowWidth - (_showScales ? 0 : ElapsedAxisWidth);
     private const int UnitLabelWidth = 35;
     private const int InputLabelWidth = 120;
 
@@ -57,6 +66,33 @@ public class MainWindow : MonoBehaviour
     internal Rect WinPos = new Rect(450, 100, WindowWidth, WindowHeight);
     private Rect _plotPosition;
     private string _tooltip = "";
+    private GUIStyle _scaleValueStyle = null!;
+    private GUIStyle _scaleTitleStyle = null!;
+    private bool _showScales = true;
+
+    // Plot drag-selection is in the local coordinates of the 500x400 porkchop plot.
+    // A short click still selects a single transfer; a rectangle reruns the solver
+    // over the selected departure-time and time-of-flight ranges.
+    private bool _zoomDragging;
+    private Vector2 _zoomDragStart;
+    private Vector2 _zoomDragEnd;
+    private readonly Stack<PlotRange> _zoomHistory = new Stack<PlotRange>();
+
+    private struct PlotRange
+    {
+        internal double EarliestDeparture;
+        internal double LatestDeparture;
+        internal double MinTimeOfFlight;
+        internal double MaxTimeOfFlight;
+
+        internal PlotRange(double earliest, double latest, double minTof, double maxTof)
+        {
+            EarliestDeparture = earliest;
+            LatestDeparture = latest;
+            MinTimeOfFlight = minTof;
+            MaxTimeOfFlight = maxTof;
+        }
+    }
 
     private MapAngleRenderer? _ejectAngleRenderer;
     private ParkingOrbitRendererHack? _parkingOrbitRenderer;
@@ -87,6 +123,8 @@ public class MainWindow : MonoBehaviour
         set
         {
             _centralBody = value;
+            _zoomHistory.Clear();
+            _plotIsDrawn = false;
             OnInputChanged();
         }
     }
@@ -97,6 +135,8 @@ public class MainWindow : MonoBehaviour
         set
         {
             _departureBody = value;
+            _zoomHistory.Clear();
+            _plotIsDrawn = false;
             if (_departureBody.IsCelestial)
             {
                 _departureAltitude.Max =
@@ -113,6 +153,8 @@ public class MainWindow : MonoBehaviour
         set
         {
             _arrivalBody = value;
+            _zoomHistory.Clear();
+            _plotIsDrawn = false;
             if (_arrivalBody.IsCelestial)
             {
                 _arrivalPeriapsis.Max = _arrivalApoapsis.Max =
@@ -177,12 +219,21 @@ public class MainWindow : MonoBehaviour
     {
         KACWrapper.InitKACWrapper();
         InitStyles();
+        _scaleValueStyle = new GUIStyle(HighLogic.Skin.label)
+        {
+            alignment = TextAnchor.MiddleCenter,
+            fontSize = 11,
+            padding = new RectOffset(0, 0, 0, 0),
+        };
+        _scaleTitleStyle = new GUIStyle(_scaleValueStyle) { fontStyle = FontStyle.Bold };
         ResetInputs();
         _bodySelectionWindow = BodySelectionWindow.Setup(this);
     }
 
     private void ResetInputs()
     {
+        CancelZoomDrag();
+        _zoomHistory.Clear();
         var departureCb = FlightGlobals.GetHomeBody();
         var centralCb = FlightGlobals.GetHomeBody().referenceBody;
         var arrivalCb = FlightGlobals.Bodies.Find(
@@ -215,6 +266,7 @@ public class MainWindow : MonoBehaviour
 
     public void OnDestroy()
     {
+        CancelZoomDrag();
         GameEvents.onGUIApplicationLauncherReady.Remove(OnGuiAppLauncherReady);
         GameEvents.onGUIApplicationLauncherDestroyed.Remove(OnGuiAppLauncherDestroyed);
         GameEvents.onGameSceneLoadRequested.Remove(OnSceneChange);
@@ -232,6 +284,9 @@ public class MainWindow : MonoBehaviour
         GUI.skin = HighLogic.Skin;
         if (!_showMainWindow) { return; }
 
+        // Fit the window to the graph: when the scales are hidden, reclaim their
+        // left margin rather than leaving an empty strip next to the plot.
+        WinPos.width = DisplayWindowWidth;
         WinPos = ClickThruBlocker.GUILayoutWindow(GetHashCode(), WinPos, WindowGUI, WindowTitle);
 
         if (!string.IsNullOrEmpty(_tooltip))
@@ -317,6 +372,7 @@ public class MainWindow : MonoBehaviour
 
     private void HideWindow()
     {
+        CancelZoomDrag();
         _showMainWindow = false;
         _bodySelectionWindow.Which = BodySelectionWindow.SelectionKind.None;
     }
@@ -448,7 +504,7 @@ public class MainWindow : MonoBehaviour
     private void ShowInputs()
     {
         using var scope = new GUILayout.VerticalScope(
-            GUILayout.ExpandWidth(false), GUILayout.Width(WindowWidth - PlotWidth));
+            GUILayout.ExpandWidth(false), GUILayout.Width(InputPanelWidth));
 
         var nextSelectionKind = BodySelectionWindow.SelectionKind.None;
 
@@ -461,7 +517,7 @@ public class MainWindow : MonoBehaviour
                     // && nextSelectionKind is BodySelectionWindow.SelectionKind.None, // Always true
                     CentralBody.displayName.LocalizeRemoveGender(),
                     ButtonStyle,
-                    GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f)))
+                    GUILayout.ExpandWidth(false), GUILayout.Width(InputPanelWidth / 2f)))
             {
                 nextSelectionKind = BodySelectionWindow.SelectionKind.Central;
             }
@@ -480,7 +536,7 @@ public class MainWindow : MonoBehaviour
                         ValidOriginOrDestination(DepartureBody) && !DepartureBody.Equals(ArrivalBody)
                             ? ButtonStyle
                             : InvalidButtonStyle,
-                        GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2f)))
+                        GUILayout.ExpandWidth(false), GUILayout.Width(InputPanelWidth / 2f)))
                 {
                     nextSelectionKind = BodySelectionWindow.SelectionKind.Departure;
                 }
@@ -508,7 +564,7 @@ public class MainWindow : MonoBehaviour
                         ValidOriginOrDestination(ArrivalBody) && !DepartureBody.Equals(ArrivalBody)
                             ? ButtonStyle
                             : InvalidButtonStyle,
-                        GUILayout.ExpandWidth(false), GUILayout.Width((WindowWidth - PlotWidth) / 2)))
+                        GUILayout.ExpandWidth(false), GUILayout.Width(InputPanelWidth / 2)))
                 {
                     nextSelectionKind = BodySelectionWindow.SelectionKind.Arrival;
                 }
@@ -528,7 +584,11 @@ public class MainWindow : MonoBehaviour
 
         GUILayout.FlexibleSpace();
 
-        if (GUILayout.Button("Reset times")) { ResetTimes(); }
+        if (GUILayout.Button("Reset times"))
+        {
+            _zoomHistory.Clear();
+            ResetTimes();
+        }
         using (new GUILayout.HorizontalScope())
         {
             using (new GuiEnabled(_errors.Count == 0 && !_solver.IsRunning))
@@ -548,16 +608,27 @@ public class MainWindow : MonoBehaviour
     {
         if (_plotIsUpdating && _solver.IsCompleted) { OnSolverDone(); }
 
-        using (new GUILayout.VerticalScope(GUILayout.ExpandWidth(false), GUILayout.Width(PlotWidth)))
+        using (new GUILayout.VerticalScope(
+                   GUILayout.ExpandWidth(false),
+                   GUILayout.Width(PlotWidth + (_showScales ? ElapsedAxisWidth : 0))))
+        {
+            using (new GUILayout.HorizontalScope())
         {
             _selectedPlot = (PlotType)GUILayout.SelectionGrid(
-                (int)_selectedPlot, new[] { "Departure", "Arrival", "Total" }, xCount: 3);
+                    (int)_selectedPlot, new[] { "Departure", "Arrival", "Total" }, 3,
+                    GUILayout.Width(PlotModeSelectorWidth));
+                _showScales = GUILayout.Toggle(_showScales, "Show scales", GUILayout.ExpandWidth(false));
+            }
 
-
-            // Ideally, we'd like to handle this _after_ drawing the plot (and therefore updating _plotPosition);
-            // however, we need the tooltip string earlier. The position might be a frame outdated; don't worry about
-            // it.
+            // The axis margin is NOT part of _plotPosition. Mouse selection, tooltips,
+            // marker placement, and zoom coordinates continue to use image pixels only.
+            // The previous repaint's plot rectangle is available to PlotHandleMouse().
             var tooltip = PlotHandleMouse();
+            using (new GUILayout.HorizontalScope())
+            {
+                // Keep the same GUILayout entries in both states so a toggle
+                // during MouseUp cannot change the number of layout controls.
+                GUILayout.Space(_showScales ? ElapsedAxisWidth : 0);
             GUILayout.Box(
                 new GUIContent(
                     _selectedPlot switch
@@ -573,7 +644,120 @@ public class MainWindow : MonoBehaviour
             if (Event.current.type is EventType.Repaint) { _plotPosition = GUILayoutUtility.GetLastRect(); }
         }
 
-        if (_plotIsDrawn) { DrawPlotMarker(); }
+            // Reserve room for the date ticks and the "Departure date" caption.
+            GUILayout.Space(_showScales ? DepartureAxisHeight : 0);
+
+            using (new GUILayout.HorizontalScope())
+            {
+                GUILayout.Label(
+                    _plotIsUpdating ? "Calculating selected area..." : "Drag to zoom; click to select",
+                    GUILayout.ExpandWidth(true));
+                using (new GuiEnabled(_zoomHistory.Count > 0 && !_plotIsUpdating && _errors.Count == 0))
+                {
+                    if (GUILayout.Button("Zoom out", GUILayout.ExpandWidth(false))) { ZoomOut(); }
+                    if (GUILayout.Button("Reset zoom", GUILayout.ExpandWidth(false))) { ResetZoom(); }
+                }
+            }
+        }
+
+        if (_plotIsDrawn && !_plotIsUpdating)
+        {
+            if (_showScales) { DrawPlotScales(); }
+            DrawPlotMarker();
+        }
+        if (_zoomDragging) { DrawZoomRectangle(); }
+    }
+
+    private void DrawPlotScales()
+    {
+        if (Event.current.type != EventType.Repaint) { return; }
+
+        // The solver uses inclusive pixel endpoints: (0, 0) is the earliest
+        // departure / longest elapsed time, and (499, 399) the latest / shortest.
+        // Reading tick values from TimesFor keeps the scales in sync after zoom.
+        var plot = _plotPosition;
+        var range = PlottedRange();
+        var daySeconds = KSPUtil.dateTimeFormatter.Day;
+        // A drag zoom is rounded to whole departure days. Show only the
+        // calendar dates on the horizontal scale while zoomed in; retain
+        // sub-day tick labels on unzoomed, manually specified narrow ranges.
+        var includeTime = _zoomHistory.Count == 0 &&
+                          (range.LatestDeparture - range.EarliestDeparture) < 3.0 * daySeconds;
+        var elapsedSpanDays = (range.MaxTimeOfFlight - range.MinTimeOfFlight) / daySeconds;
+
+        // Use fewer date labels if long calendar strings would overlap near
+        // the first and last ticks (whose labels are clamped to the chart).
+        var earliestLabel = KSPUtil.PrintDateCompact(range.EarliestDeparture, includeTime).Trim();
+        var middleLabel = KSPUtil.PrintDateCompact(
+            (range.EarliestDeparture + range.LatestDeparture) * 0.5, includeTime).Trim();
+        var latestLabel = KSPUtil.PrintDateCompact(range.LatestDeparture, includeTime).Trim();
+        var widestDateLabel = Math.Max(_scaleValueStyle.CalcSize(new GUIContent(earliestLabel)).x,
+            Math.Max(_scaleValueStyle.CalcSize(new GUIContent(middleLabel)).x,
+                _scaleValueStyle.CalcSize(new GUIContent(latestLabel)).x)) + 6;
+        var dateTickCount = widestDateLabel > PlotWidth / 3f ? 2
+            : includeTime || widestDateLabel > (PlotWidth - 1) / 6f ? 3 : 5;
+
+        var previousColor = GUI.color;
+        GUI.color = new Color(1f, 1f, 1f, 0.8f);
+        GUI.DrawTexture(new Rect(plot.xMin - 1, plot.yMin, 1, PlotHeight), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(plot.xMin, plot.yMax, PlotWidth, 1), Texture2D.whiteTexture);
+
+        // Horizontal axis: increasing departure date, left to right.
+        for (var tick = 0; tick < dateTickCount; ++tick)
+        {
+            var xPixel = (int)Math.Round((PlotWidth - 1) * tick / (double)(dateTickCount - 1));
+            var (departure, _) = _solver.TimesFor(xPixel, 0);
+            var x = plot.xMin + xPixel;
+            GUI.DrawTexture(new Rect(x, plot.yMax, 1, 6), Texture2D.whiteTexture);
+
+            var label = KSPUtil.PrintDateCompact(departure, includeTime).Trim();
+            var labelWidth = Mathf.Min(PlotWidth, _scaleValueStyle.CalcSize(new GUIContent(label)).x + 6);
+            var left = Mathf.Clamp(x - labelWidth * 0.5f, plot.xMin, plot.xMax - labelWidth);
+            GUI.color = previousColor;
+            GUI.Label(new Rect(left, plot.yMax + 7, labelWidth, 18), label, _scaleValueStyle);
+            GUI.color = new Color(1f, 1f, 1f, 0.8f);
+        }
+
+        GUI.color = previousColor;
+        GUI.Label(new Rect(plot.xMin, plot.yMax + 28, PlotWidth, 19),
+            "Departure date", _scaleTitleStyle);
+
+        // Vertical axis: elapsed flight time in KSP calendar days, decreasing
+        // from the top of the graph to the bottom.
+        for (var tick = 0; tick < 5; ++tick)
+        {
+            var yPixel = (int)Math.Round((PlotHeight - 1) * tick / 4.0);
+            var (_, elapsedTime) = _solver.TimesFor(0, yPixel);
+            var y = plot.yMin + yPixel;
+            GUI.color = new Color(1f, 1f, 1f, 0.8f);
+            GUI.DrawTexture(new Rect(plot.xMin - 6, y, 6, 1), Texture2D.whiteTexture);
+            GUI.color = previousColor;
+            var label = FormatElapsedDays(elapsedTime / daySeconds, elapsedSpanDays);
+            var labelTop = Mathf.Clamp(y - 9, plot.yMin, plot.yMax - 18);
+            GUI.Label(new Rect(plot.xMin - 70, labelTop, 62, 18), label, _scaleValueStyle);
+        }
+
+        // Keep the axis title left of its numeric labels rather than over the
+        // graph. Restore the matrix so subsequent IMGUI controls are unaffected.
+        var pivot = new Vector2(plot.xMin - ElapsedAxisWidth + 10, plot.center.y);
+        var oldMatrix = GUI.matrix;
+        GUIUtility.RotateAroundPivot(-90f, pivot);
+        GUI.Label(new Rect(pivot.x - 88, pivot.y - 10, 176, 20),
+            "Elapsed time (days)", _scaleTitleStyle);
+        GUI.matrix = oldMatrix;
+        GUI.color = previousColor;
+    }
+
+    private static string FormatElapsedDays(double days, double spanDays)
+    {
+        // Pick enough decimal places to distinguish adjacent major ticks even
+        // for very narrow zoom ranges, without adding unnecessary precision.
+        var majorStep = Math.Abs(spanDays) / 4.0;
+        var decimals = majorStep > 0.0
+            ? Math.Max(0, Math.Min(8, (int)Math.Ceiling(-Math.Log10(majorStep)) + 1))
+            : 0;
+        return days.ToString(decimals == 0 ? "0" : "0." + new string('0', decimals),
+            CultureInfo.CurrentCulture);
     }
 
     private void DrawPlotMarker()
@@ -585,22 +769,197 @@ public class MainWindow : MonoBehaviour
 
     private string PlotHandleMouse()
     {
-        if (!_plotIsDrawn) { return ""; }
-        var mousePos = Event.current.mousePosition;
-        if (!_plotPosition.Contains(mousePos)) { return ""; }
+        if (!_plotIsDrawn || _plotIsUpdating) { return ""; }
 
-        var pos = mousePos - _plotPosition.position;
+        var evt = Event.current;
+        // Do not claim GUIUtility.hotControl here. Doing so can leave the enclosing
+        // GUILayoutWindow unable to drag if the IMGUI control ID changes between
+        // MouseDown and MouseUp (for example when the layout changes).
+        // Consuming only the graph's mouse events keeps GUI.DragWindow() working
+        // normally everywhere outside the plot.
+        var insidePlot = _plotPosition.Contains(evt.mousePosition);
+        var pos = ClampToPlot(evt.mousePosition - _plotPosition.position);
+
+        // If a release was missed outside the game window, the next press
+        // outside the plot must not inherit the old graph selection.
+        if (_zoomDragging && evt.type == EventType.MouseDown && evt.button == 0 && !insidePlot)
+        {
+            CancelZoomDrag();
+        }
+
+        if (evt.type == EventType.MouseDown && evt.button == 0 && insidePlot)
+        {
+            _zoomDragging = true;
+            _zoomDragStart = _zoomDragEnd = pos;
+            evt.Use(); // Prevent GUI.DragWindow() from moving the window on this press.
+            return "";
+        }
+
+        if (_zoomDragging)
+        {
+            if (evt.type == EventType.MouseDrag && evt.button == 0)
+            {
+                _zoomDragEnd = pos; // Clamped if dragged beyond the plot.
+                evt.Use();
+                return "";
+            }
+
+            if (evt.type == EventType.KeyDown && evt.keyCode == KeyCode.Escape)
+            {
+                CancelZoomDrag();
+                evt.Use();
+                return "";
+            }
+
+            if (evt.type == EventType.MouseDown && evt.button == 1)
+            {
+                CancelZoomDrag();
+                evt.Use();
+                return "";
+            }
+
+            if (evt.type == EventType.MouseUp && evt.button == 0)
+            {
+                _zoomDragEnd = pos;
+                var start = _zoomDragStart;
+                var end = _zoomDragEnd;
+                CancelZoomDrag();
+                evt.Use();
+
+                var width = Math.Abs(end.x - start.x);
+                var height = Math.Abs(end.y - start.y);
+                if (width >= MinZoomDragPixels && height >= MinZoomDragPixels)
+                {
+                    ZoomToRectangle(start, end);
+                }
+                else if (width < MinZoomDragPixels && height < MinZoomDragPixels && insidePlot)
+                {
+                    // Preserve the original single-click transfer selection behavior.
+                    UpdateTransferDetails(((int)pos.x, (int)pos.y));
+                }
+                return "";
+            }
+            return "";
+        }
+
+        if (!insidePlot) { return ""; }
+
         var i = (int)pos.x;
         var j = (int)pos.y;
         var (dep, tof) = _solver.TimesFor(i, j);
-        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, includeTime: false)}"
-                      + $"\nArrival: {KSPUtil.PrintDateCompact(dep + tof, includeTime: false)}"
+        var tooltip = $"Departure: {KSPUtil.PrintDateCompact(dep, includeTime: true)}"
+                      + $"\nArrival: {KSPUtil.PrintDateCompact(dep + tof, includeTime: true)}"
                       + $"\nEject: {_solver.DepΔv[i, j].ToSI()}m/s"
                       + $"\nInsert: {_solver.ArrΔv[i, j].ToSI()}m/s"
                       + $"\nTotal: {_solver.TotalΔv[i, j].ToSI()}m/s";
-
-        if (Event.current.type == EventType.MouseUp && Event.current.button == 0) { UpdateTransferDetails((i, j)); }
         return tooltip;
+    }
+
+    private static Vector2 ClampToPlot(Vector2 pos) => new Vector2(
+        Mathf.Clamp(pos.x, 0, PlotWidth - 1),
+        Mathf.Clamp(pos.y, 0, PlotHeight - 1));
+
+    private void CancelZoomDrag()
+    {
+        if (!_zoomDragging) { return; }
+        _zoomDragging = false;
+    }
+
+    private void DrawZoomRectangle()
+    {
+        // The drag coordinates are already clamped to the plotted image.
+        var left = Math.Min(_zoomDragStart.x, _zoomDragEnd.x);
+        var top = Math.Min(_zoomDragStart.y, _zoomDragEnd.y);
+        var width = Math.Abs(_zoomDragEnd.x - _zoomDragStart.x);
+        var height = Math.Abs(_zoomDragEnd.y - _zoomDragStart.y);
+        var rect = new Rect(_plotPosition.x + left, _plotPosition.y + top, width, height);
+        if (Event.current.type != EventType.Repaint || width < 2f || height < 2f) { return; }
+
+        var previousColor = GUI.color;
+        GUI.color = new Color(0.25f, 0.8f, 1f, 0.18f);
+        GUI.DrawTexture(rect, Texture2D.whiteTexture);
+        GUI.color = new Color(0.25f, 0.8f, 1f, 0.95f);
+        GUI.DrawTexture(new Rect(rect.x, rect.y, rect.width, 2f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.x, rect.yMax - 2f, rect.width, 2f), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.x, rect.y, 2f, rect.height), Texture2D.whiteTexture);
+        GUI.DrawTexture(new Rect(rect.xMax - 2f, rect.y, 2f, rect.height), Texture2D.whiteTexture);
+        GUI.color = previousColor;
+    }
+
+    private PlotRange PlottedRange()
+    {
+        var (firstDep, longestTof) = _solver.TimesFor(0, 0);
+        var (lastDep, shortestTof) = _solver.TimesFor(PlotWidth - 1, PlotHeight - 1);
+        return new PlotRange(firstDep, lastDep, shortestTof, longestTof);
+    }
+
+    private void ZoomToRectangle(Vector2 start, Vector2 end)
+    {
+        if (_plotIsUpdating || _errors.Count != 0) { return; }
+
+        // The solver samples [0..width-1] and [0..height-1], not [0..width]
+        // and [0..height]. Using these endpoints avoids an off-by-one shift on zoom.
+        var old = PlottedRange();
+        var left = Math.Min(start.x, end.x) / (PlotWidth - 1);
+        var right = Math.Max(start.x, end.x) / (PlotWidth - 1);
+        var top = Math.Min(start.y, end.y) / (PlotHeight - 1);
+        var bottom = Math.Max(start.y, end.y) / (PlotHeight - 1);
+
+        // Include the entire first and last selected departure days. Use the
+        // active KSP calendar's day length (6 hours in stock, 24 hours in RSS),
+        // not a fixed Earth-day length. The last second belongs to the selected
+        // final day rather than the start of the following day.
+        var selectedFirstDeparture = old.EarliestDeparture +
+                                     (old.LatestDeparture - old.EarliestDeparture) * left;
+        var selectedLastDeparture = old.EarliestDeparture +
+                                    (old.LatestDeparture - old.EarliestDeparture) * right;
+        var daySeconds = KSPUtil.dateTimeFormatter.Day;
+        var firstDayStart = Math.Floor(selectedFirstDeparture / daySeconds) * daySeconds;
+        var lastDayEnd = (Math.Floor(selectedLastDeparture / daySeconds) + 1) * daySeconds - 1;
+
+        var next = new PlotRange(
+            firstDayStart,
+            lastDayEnd,
+            old.MaxTimeOfFlight - (old.MaxTimeOfFlight - old.MinTimeOfFlight) * bottom,
+            old.MaxTimeOfFlight - (old.MaxTimeOfFlight - old.MinTimeOfFlight) * top);
+
+        _zoomHistory.Push(old);
+        ApplyPlotRange(next);
+        if (_errors.Count == 0) { GeneratePlots(preserveZoomHistory: true); }
+        else
+        {
+            _zoomHistory.Pop();
+            ApplyPlotRange(old);
+        }
+    }
+
+    private void ZoomOut()
+    {
+        if (_zoomHistory.Count == 0 || _plotIsUpdating) { return; }
+        ApplyPlotRange(_zoomHistory.Pop());
+        GeneratePlots(preserveZoomHistory: true);
+    }
+
+    private void ResetZoom()
+    {
+        if (_zoomHistory.Count == 0 || _plotIsUpdating) { return; }
+        PlotRange original = default;
+        while (_zoomHistory.Count > 0) { original = _zoomHistory.Pop(); }
+        ApplyPlotRange(original);
+        GeneratePlots(preserveZoomHistory: true);
+    }
+
+    private void ApplyPlotRange(PlotRange range)
+    {
+        // The date-only Ut setter preserves the exact solver times without
+        // displaying hour/minute/second suffixes in the input fields.
+        // In particular, the latest departure remains the final second of its
+        // selected day rather than being silently rounded back to midnight.
+        _earliestDeparture.Ut = range.EarliestDeparture;
+        _latestDeparture.Ut = range.LatestDeparture;
+        _minTimeOfFlight.Value = range.MinTimeOfFlight / KSPUtil.dateTimeFormatter.Day;
+        _maxTimeOfFlight.Value = range.MaxTimeOfFlight / KSPUtil.dateTimeFormatter.Day;
+        OnInputChanged();
     }
 
     private void ShowDepartureInfo()
@@ -615,7 +974,7 @@ public class MainWindow : MonoBehaviour
         using (new GUILayout.VerticalScope(
                    BoxStyle,
                    GUILayout.ExpandWidth(false),
-                   GUILayout.Width(WindowWidth / 3f)))
+                   GUILayout.Width(DisplayWindowWidth / 3f)))
         {
             GUILayout.Label("Departure", BoxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.DepartureTime, _transferDetails.IsShort));
@@ -642,7 +1001,7 @@ public class MainWindow : MonoBehaviour
         using (new GUILayout.VerticalScope(
                    BoxStyle,
                    GUILayout.ExpandWidth(false),
-                   GUILayout.Width(WindowWidth / 3f)))
+                   GUILayout.Width(DisplayWindowWidth / 3f)))
         {
             GUILayout.Label("Arrival", BoxTitleStyle);
             LabeledInfo("Date", KSPUtil.PrintDateNew(_transferDetails.ArrivalTime, _transferDetails.IsShort));
@@ -668,7 +1027,7 @@ public class MainWindow : MonoBehaviour
         using (new GUILayout.VerticalScope(
                    BoxStyle,
                    GUILayout.ExpandWidth(false),
-                   GUILayout.Width(WindowWidth / 3f)))
+                   GUILayout.Width(DisplayWindowWidth / 3f)))
         {
             GUILayout.Label("Transfer", BoxTitleStyle);
             LabeledInfo(
@@ -742,13 +1101,16 @@ public class MainWindow : MonoBehaviour
 
     #region Generating the plots
 
-    private void GeneratePlots()
+    private void GeneratePlots(bool preserveZoomHistory = false)
     {
         if (_solver.IsRunning)
         {
             Debug.LogError($"Solver is already working!");
             return;
         }
+
+        if (!preserveZoomHistory) { _zoomHistory.Clear(); }
+        _plotIsDrawn = false;
         _plotIsUpdating = true;
 
         _solver.GeneratePorkchop(
